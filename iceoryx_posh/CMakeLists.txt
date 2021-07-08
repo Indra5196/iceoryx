@@ -16,7 +16,7 @@
 # SPDX-License-Identifier: Apache-2.0
 cmake_minimum_required(VERSION 3.5)
 
-set(IOX_VERSION_STRING "1.90.0")
+set(IOX_VERSION_STRING "1.0.0")
 
 project(iceoryx_posh VERSION ${IOX_VERSION_STRING})
 
@@ -118,10 +118,8 @@ add_library(iceoryx_posh
     source/popo/building_blocks/condition_variable_data.cpp
     source/popo/building_blocks/locking_policy.cpp
     source/popo/building_blocks/typed_unique_id.cpp
-    source/popo/client_options.cpp
     source/popo/listener.cpp
     source/popo/notification_info.cpp
-    source/popo/rpc_header.cpp
     source/popo/trigger.cpp
     source/popo/trigger_handle.cpp
     source/popo/user_trigger.cpp
@@ -133,7 +131,6 @@ add_library(iceoryx_posh
     source/runtime/ipc_message.cpp
     source/runtime/port_config_info.cpp
     source/runtime/posh_runtime.cpp
-    source/runtime/posh_runtime_impl.cpp
     source/runtime/posh_runtime_single_process.cpp
     source/runtime/node.cpp
     source/runtime/node_data.cpp

@@ -1,5 +1,4 @@
 // Copyright (c) 2019 by Robert Bosch GmbH. All rights reserved.
-// Copyright (c) 2021 by Apex.AI Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,23 +27,23 @@ namespace iox
 {
 namespace roudi
 {
-static const capro::IdString_t Wildcard{"*"};
 class ServiceRegistry
 {
   public:
     static constexpr uint32_t MAX_INSTANCES_PER_SERVICE = 100u;
-    using InstanceSet_t = cxx::vector<capro::IdString_t, MAX_INSTANCES_PER_SERVICE>;
+    using CaproIdString_t = capro::IdString_t;
+    using InstanceSet_t = cxx::vector<CaproIdString_t, MAX_INSTANCES_PER_SERVICE>;
     struct instance_t
     {
         InstanceSet_t instanceSet;
     };
-    using serviceMap_t = std::map<capro::IdString_t, instance_t>;
+    using serviceMap_t = std::map<CaproIdString_t, instance_t>;
 
-    void add(const capro::IdString_t& service, const capro::IdString_t& instance);
-    void remove(const capro::IdString_t& service, const capro::IdString_t& instance);
+    void add(const CaproIdString_t& service, const CaproIdString_t& instance);
+    void remove(const CaproIdString_t& service, const CaproIdString_t& instance);
     void find(InstanceSet_t& instances,
-              const capro::IdString_t& service,
-              const capro::IdString_t& instance = Wildcard) const;
+              const CaproIdString_t& service,
+              const CaproIdString_t& instance = capro::AnyInstanceString) const;
     const serviceMap_t& getServiceMap() const;
 
   private:

@@ -30,6 +30,10 @@ enum class CaproMessageType : uint8_t
     FIND,
     OFFER,
     STOP_OFFER,
+    CONNECT,
+    DISCONNECT,
+    CONNECT_ACK,
+    OFFER_ACK,
     SUB,
     UNSUB,
     ACK,
@@ -44,7 +48,7 @@ enum class CaproMessageType : uint8_t
 
 constexpr int32_t MAX_ENUM_STRING_SIZE = 64;
 constexpr char CaproMessageTypeString[][MAX_ENUM_STRING_SIZE] = {
-    "NOTYPE", "FIND", "OFFER", "STOP_OFFER", "SUB", "UNSUB", "ACK", "NACK", "PUB", "REQ", "RES", "PING", "PONG"};
+    "NOTYPE", "FIND", "OFFER", "STOP_OFFER", "CONNECT", "DISCONNECT", "SUB", "UNSUB", "ACK", "NACK", "PUB", "REQ", "RES", "PING", "PONG"};
 
 
 enum class CaproMessageSubType : uint8_t
@@ -52,7 +56,8 @@ enum class CaproMessageSubType : uint8_t
     NOSUBTYPE = 0,
     SERVICE,
     EVENT,
-    FIELD
+    FIELD,
+    METHOD
 };
 
 /// @brief C'tors for CaPro messages

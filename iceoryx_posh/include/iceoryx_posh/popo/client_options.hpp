@@ -1,4 +1,4 @@
-// Copyright (c) 2021 by Apex.AI Inc. All rights reserved.
+// Copyright (c) 2020 - 2021 by Apex.AI Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,11 +17,9 @@
 #ifndef IOX_POSH_POPO_CLIENT_OPTIONS_HPP
 #define IOX_POSH_POPO_CLIENT_OPTIONS_HPP
 
-#include "iceoryx_posh/internal/popo/ports/client_server_port_types.hpp"
-#include "iceoryx_posh/popo/port_queue_policies.hpp"
-
-#include "iceoryx_hoofs/cxx/serialization.hpp"
-
+#include "iceoryx_posh/iceoryx_posh_types.hpp"
+#include "iceoryx_posh/internal/popo/ports/client_port_data.hpp"
+#include "port_queue_policies.hpp"
 #include <cstdint>
 
 namespace iox
@@ -31,28 +29,35 @@ namespace popo
 /// @brief This struct is used to configure the client
 struct ClientOptions
 {
-    /// @brief The size of the response queue where chunks are stored before they are passed to the user
-    /// @attention Depending on the underlying queue there can be a different overflow behavior
-    uint64_t responseQueueCapacity{ClientChunkQueueData_t::MAX_CAPACITY};
+    /// @brief The size of the history chunk queue
+    uint64_t historyCapacity{0U};
+
+    /// @brief The max number of chunks received after response if chunks are available
+    uint64_t historyRequest{0U};
+
+    /// @brief The size of the response chunk queue
+    uint64_t queueCapacity{8UL};
 
     /// @brief The name of the node where the client should belong to
     iox::NodeName_t nodeName{""};
 
-    /// @brief The option whether the client shall try to connect when creating it
+    /// @brief The option whether the client should already be connected when creating it
     bool connectOnCreate{true};
 
-    /// @brief The option whether the server should block when the response queue is full
-    /// @note Corresponds with ServerOptions::clientTooSlowPolicy
-    QueueFullPolicy2 responseQueueFullPolicy{QueueFullPolicy2::DISCARD_OLDEST_DATA};
+    /// @brief The option whether the client should expect a response from server
+    bool fireAndForget{false};
 
-    /// @brief The option whether the client should block when the request queue is full
-    ConsumerTooSlowPolicy serverTooSlowPolicy{ConsumerTooSlowPolicy::DISCARD_OLDEST_DATA};
+    /// @brief The option whether the client should wait for response
+    bool blockingCall{false};
 
-    /// @brief serialization of the ClientOptions
-    cxx::Serialization serialize() const noexcept;
-    /// @brief deserialization of the ClientOptions
-    static cxx::expected<ClientOptions, cxx::Serialization::Error>
-    deserialize(const cxx::Serialization& serialized) noexcept;
+    /// @brief The amount of time for which client should wait for response. 0 means indefinite
+    uint64_t waitingTime{0U};
+
+    /// @brief The option whether the client should block when the server queue is full
+    SubscriberTooSlowPolicy serverTooSlowPolicy{SubscriberTooSlowPolicy::DISCARD_OLDEST_DATA};
+
+    /// @brief The strategy when the response queue is full
+    QueueFullPolicy queueFullPolicy{QueueFullPolicy::DISCARD_OLDEST_DATA};
 };
 
 } // namespace popo

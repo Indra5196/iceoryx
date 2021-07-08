@@ -21,26 +21,18 @@ namespace iox
 {
 namespace popo
 {
-cxx::VariantQueueTypes getQueueType(const QueueFullPolicy2 policy) noexcept
-{
-    return policy == QueueFullPolicy2::DISCARD_OLDEST_DATA ? cxx::VariantQueueTypes::SoFi_MultiProducerSingleConsumer
-                                                           : cxx::VariantQueueTypes::FiFo_MultiProducerSingleConsumer;
-}
-
 ClientPortData::ClientPortData(const capro::ServiceDescription& serviceDescription,
                                const RuntimeName_t& runtimeName,
                                const ClientOptions& clientOptions,
                                mepoo::MemoryManager* const memoryManager,
                                const mepoo::MemoryInfo& memoryInfo) noexcept
     : BasePortData(serviceDescription, runtimeName, clientOptions.nodeName)
-    , m_chunkSenderData(memoryManager,
-                        static_cast<SubscriberTooSlowPolicy>(clientOptions.serverTooSlowPolicy),
-                        HISTORY_CAPACITY_ZERO,
-                        memoryInfo)
-    , m_chunkReceiverData(getQueueType(clientOptions.responseQueueFullPolicy),
-                          static_cast<QueueFullPolicy>(clientOptions.responseQueueFullPolicy))
+    , m_fireAndForget(clientOptions.fireAndForget)
     , m_connectRequested(clientOptions.connectOnCreate)
+    , m_chunkSenderData(memoryManager, clientOptions.serverTooSlowPolicy, clientOptions.historyCapacity, memoryInfo)
+    , m_chunkReceiverData(cxx::VariantQueueTypes::FiFo_SingleProducerSingleConsumer, clientOptions.queueFullPolicy, memoryInfo)
 {
+    m_chunkReceiverData.ChunkQueueData_t::m_portId = BasePortData::m_uniqueId;
 }
 
 } // namespace popo

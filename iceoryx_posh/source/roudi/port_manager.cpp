@@ -122,6 +122,10 @@ void PortManager::doDiscovery() noexcept
 
     handleSubscriberPorts();
 
+    handleClientPorts();
+
+    handleServerPorts();
+
     handleApplications();
 
     handleInterfaces();
@@ -151,7 +155,6 @@ void PortManager::handlePublisherPorts() noexcept
 void PortManager::doDiscoveryForPublisherPort(PublisherPortRouDiType& publisherPort) noexcept
 {
     publisherPort.tryGetCaProMessage().and_then([this, &publisherPort](auto caproMessage) {
-        cxx::Expects(caproMessage.m_serviceDescription.isValid() && "invalid service description!");
         m_portIntrospection.reportMessage(caproMessage);
         if (capro::CaproMessageType::OFFER == caproMessage.m_type)
         {
@@ -171,6 +174,60 @@ void PortManager::doDiscoveryForPublisherPort(PublisherPortRouDiType& publisherP
         }
 
         this->sendToAllMatchingSubscriberPorts(caproMessage, publisherPort);
+        // forward to interfaces
+        this->sendToAllMatchingInterfacePorts(caproMessage);
+    });
+}
+
+void PortManager::doDiscoveryForClientPort(ClientPortRouDiType& clientPort) noexcept
+{
+    clientPort.tryGetCaProMessage().and_then([this, &clientPort](auto caproMessage) {
+        m_portIntrospection.reportMessage(caproMessage);
+        if (capro::CaproMessageType::CONNECT == caproMessage.m_type)
+        {
+            this->addEntryToServiceRegistry(caproMessage.m_serviceDescription.getServiceIDString(),
+                                            caproMessage.m_serviceDescription.getInstanceIDString());
+        }
+        else if (capro::CaproMessageType::DISCONNECT == caproMessage.m_type)
+        {
+            this->removeEntryFromServiceRegistry(caproMessage.m_serviceDescription.getServiceIDString(),
+                                                 caproMessage.m_serviceDescription.getInstanceIDString());
+        }
+        else
+        {
+            // protocol error
+            errorHandler(
+                Error::kPORT_MANAGER__HANDLE_CLIENT_PORTS_INVALID_CAPRO_MESSAGE, nullptr, iox::ErrorLevel::MODERATE);
+        }
+
+        this->sendToAllMatchingServerPorts(caproMessage, clientPort);
+        // forward to interfaces
+        this->sendToAllMatchingInterfacePorts(caproMessage);
+    });
+}
+
+void PortManager::doDiscoveryForServerPort(ServerPortRouDiType& serverPort) noexcept
+{
+    serverPort.tryGetCaProMessage().and_then([this, &serverPort](auto caproMessage) {
+        m_portIntrospection.reportMessage(caproMessage);
+        if (capro::CaproMessageType::OFFER == caproMessage.m_type)
+        {
+            this->addEntryToServiceRegistry(caproMessage.m_serviceDescription.getServiceIDString(),
+                                            caproMessage.m_serviceDescription.getInstanceIDString());
+        }
+        else if (capro::CaproMessageType::STOP_OFFER == caproMessage.m_type)
+        {
+            this->removeEntryFromServiceRegistry(caproMessage.m_serviceDescription.getServiceIDString(),
+                                                 caproMessage.m_serviceDescription.getInstanceIDString());
+        }
+        else
+        {
+            // protocol error
+            errorHandler(
+                Error::kPORT_MANAGER__HANDLE_SERVER_PORTS_INVALID_CAPRO_MESSAGE, nullptr, iox::ErrorLevel::MODERATE);
+        }
+
+        this->sendToAllMatchingClientPorts(caproMessage, serverPort);
         // forward to interfaces
         this->sendToAllMatchingInterfacePorts(caproMessage);
     });
@@ -196,7 +253,6 @@ void PortManager::handleSubscriberPorts() noexcept
 void PortManager::doDiscoveryForSubscriberPort(SubscriberPortType& subscriberPort) noexcept
 {
     subscriberPort.tryGetCaProMessage().and_then([this, &subscriberPort](auto caproMessage) {
-        cxx::Expects(caproMessage.m_serviceDescription.isValid() && "invalid service description!");
         if ((capro::CaproMessageType::SUB == caproMessage.m_type)
             || (capro::CaproMessageType::UNSUB == caproMessage.m_type))
         {
@@ -221,6 +277,39 @@ void PortManager::doDiscoveryForSubscriberPort(SubscriberPortType& subscriberPor
     });
 }
 
+void PortManager::handleClientPorts() noexcept
+{
+    // get requests for change of subscription state of subscribers
+    for (auto clientPortData : m_portPool->getClientPortDataList())
+    {
+        ClientPortRouDiType clientPort(clientPortData);
+
+        doDiscoveryForClientPort(clientPort);
+
+        // check if we have to destroy this subscriber port
+        if (clientPort.toBeDestroyed())
+        {
+            destroyClientPort(clientPortData);
+        }
+    }
+}
+
+void PortManager::handleServerPorts() noexcept
+{
+    // get requests for change of subscription state of subscribers
+    for (auto serverPortData : m_portPool->getServerPortDataList())
+    {
+        ServerPortRouDiType serverPort(serverPortData);
+
+        doDiscoveryForServerPort(serverPort);
+
+        // check if we have to destroy this subscriber port
+        if (serverPort.toBeDestroyed())
+        {
+            destroyServerPort(serverPortData);
+        }
+    }
+}
 
 void PortManager::handleInterfaces() noexcept
 {
@@ -276,7 +365,7 @@ void PortManager::handleInterfaces() noexcept
         {
             for (auto& instance : x.second.instanceSet)
             {
-                caproMessage.m_serviceDescription = capro::ServiceDescription(x.first, instance, roudi::Wildcard);
+                caproMessage.m_serviceDescription = capro::ServiceDescription(x.first, instance, capro::AnyEventString);
 
                 for (auto& interfacePortData : interfacePortsForInitialForwarding)
                 {
@@ -299,21 +388,21 @@ void PortManager::handleApplications() noexcept
         while (auto maybeCaproMessage = applicationPort.tryGetCaProMessage())
         {
             auto& caproMessage = maybeCaproMessage.value();
-            auto& serviceDescription = caproMessage.m_serviceDescription;
-
-            cxx::Expects(serviceDescription.isValid() && "invalid service description!");
             switch (caproMessage.m_type)
             {
             case capro::CaproMessageType::OFFER:
             {
+                auto serviceDescription = caproMessage.m_serviceDescription;
                 addEntryToServiceRegistry(serviceDescription.getServiceIDString(),
                                           serviceDescription.getInstanceIDString());
                 break;
             }
             case capro::CaproMessageType::STOP_OFFER:
             {
+                auto serviceDescription = caproMessage.m_serviceDescription;
                 removeEntryFromServiceRegistry(serviceDescription.getServiceIDString(),
                                                serviceDescription.getInstanceIDString());
+
                 break;
             }
             default:
@@ -428,6 +517,86 @@ void PortManager::sendToAllMatchingSubscriberPorts(const capro::CaproMessage& me
 
                     // inform introspection
                     m_portIntrospection.reportMessage(publisherResponse.value());
+                }
+            }
+        }
+    }
+}
+
+void PortManager::sendToAllMatchingServerPorts(const capro::CaproMessage& message,
+                                                   ClientPortRouDiType& clientSource) noexcept
+{
+    for (auto serverPortData : m_portPool->getServerPortDataList())
+    {
+        ServerPortRouDiType serverPort(serverPortData);
+        if (clientSource.getCaProServiceDescription() == clientSource.getCaProServiceDescription()
+            && !(serverPort.getClientTooSlowPolicy() == popo::SubscriberTooSlowPolicy::DISCARD_OLDEST_DATA
+                 && clientSource.getQueueFullPolicy() == popo::QueueFullPolicy::BLOCK_PUBLISHER))
+        {
+            auto serverResponse = serverPort.dispatchCaProMessageAndGetPossibleResponse(message);
+
+            // if the subscribers react on the change, process it immediately on publisher side
+            if (serverResponse.has_value())
+            {
+                // we only expect reaction on CONNECT
+                // cxx::Expects(capro::CaproMessageType::CONNECT == message.m_type);
+
+                // inform introspection
+                m_portIntrospection.reportMessage(serverResponse.value());
+
+                auto clientResponse =
+                    clientSource.dispatchCaProMessageAndGetPossibleResponse(serverResponse.value());
+                if (clientResponse.has_value())
+                {
+                    // sende responsee to subscriber port
+                    auto returnMessage =
+                        serverPort.dispatchCaProMessageAndGetPossibleResponse(clientResponse.value());
+
+                    // ACK or NACK are sent back to the subscriber port, no further response from this one expected
+                    cxx::Ensures(!returnMessage.has_value());
+
+                    // inform introspection
+                    m_portIntrospection.reportMessage(clientResponse.value());
+                }
+            }
+        }
+    }
+}
+
+void PortManager::sendToAllMatchingClientPorts(const capro::CaproMessage& message,
+                                                   ServerPortRouDiType& serverSource) noexcept
+{
+    for (auto clientPortData : m_portPool->getClientPortDataList())
+    {
+        ClientPortRouDiType clientPort(clientPortData);
+        if (clientPort.getCaProServiceDescription() == serverSource.getCaProServiceDescription()
+            && !(serverSource.getClientTooSlowPolicy() == popo::SubscriberTooSlowPolicy::DISCARD_OLDEST_DATA
+                 && clientPort.getQueueFullPolicy() == popo::QueueFullPolicy::BLOCK_PUBLISHER))
+        {
+            auto clientResponse = clientPort.dispatchCaProMessageAndGetPossibleResponse(message);
+
+            // if the subscribers react on the change, process it immediately on publisher side
+            if (clientResponse.has_value())
+            {
+                // we only expect reaction on OFFER
+                // cxx::Expects(capro::CaproMessageType::OFFER == message.m_type);
+
+                // inform introspection
+                m_portIntrospection.reportMessage(clientResponse.value());
+
+                auto serverResponse =
+                    serverSource.dispatchCaProMessageAndGetPossibleResponse(clientResponse.value());
+                if (serverResponse.has_value())
+                {
+                    // sende responsee to subscriber port
+                    auto returnMessage =
+                        clientPort.dispatchCaProMessageAndGetPossibleResponse(serverResponse.value());
+
+                    // ACK or NACK are sent back to the subscriber port, no further response from this one expected
+                    cxx::Ensures(!returnMessage.has_value());
+
+                    // inform introspection
+                    m_portIntrospection.reportMessage(serverResponse.value());
                 }
             }
         }
@@ -588,11 +757,66 @@ void PortManager::destroySubscriberPort(SubscriberPortType::MemberType_t* const 
     LogDebug() << "Destroyed subscriber port";
 }
 
-runtime::IpcMessage PortManager::findService(const capro::IdString_t& service,
-                                             const capro::IdString_t& instance) noexcept
+void PortManager::destroyClientPort(ClientPortRouDiType::MemberType_t* const clientPortData) noexcept
+{
+    // create temporary publisher ports to orderly shut this publisher down
+    ClientPortRouDiType clientPortRoudi{clientPortData};
+    ClientPortUserType clientPortUser{clientPortData};
+
+    clientPortRoudi.releaseAllChunks();
+    clientPortUser.disconnect();
+
+    // process STOP_OFFER for this publisher in RouDi and distribute it
+    clientPortRoudi.tryGetCaProMessage().and_then([this, &clientPortRoudi](auto caproMessage) {
+        cxx::Ensures(caproMessage.m_type == capro::CaproMessageType::DISCONNECT);
+
+        m_portIntrospection.reportMessage(caproMessage);
+        this->removeEntryFromServiceRegistry(caproMessage.m_serviceDescription.getServiceIDString(),
+                                             caproMessage.m_serviceDescription.getInstanceIDString());
+        this->sendToAllMatchingServerPorts(caproMessage, clientPortRoudi);
+        this->sendToAllMatchingInterfacePorts(caproMessage);
+    });
+
+    //m_portIntrospection.removeClient(clientPortUser);
+
+    // delete publisher port from list after STOP_OFFER was processed
+    m_portPool->removeClientPort(clientPortData);
+
+    LogDebug() << "Destroyed client port";
+}
+
+void PortManager::destroyServerPort(ServerPortRouDiType::MemberType_t* const serverPortData) noexcept
+{
+    // create temporary publisher ports to orderly shut this publisher down
+    ServerPortRouDiType serverPortRoudi{serverPortData};
+    ServerPortUserType serverPortUser{serverPortData};
+
+    serverPortRoudi.releaseAllChunks();
+    serverPortUser.stopOffer();
+
+    // process STOP_OFFER for this publisher in RouDi and distribute it
+    serverPortRoudi.tryGetCaProMessage().and_then([this, &serverPortRoudi](auto caproMessage) {
+        cxx::Ensures(caproMessage.m_type == capro::CaproMessageType::STOP_OFFER);
+
+        m_portIntrospection.reportMessage(caproMessage);
+        this->removeEntryFromServiceRegistry(caproMessage.m_serviceDescription.getServiceIDString(),
+                                             caproMessage.m_serviceDescription.getInstanceIDString());
+        this->sendToAllMatchingClientPorts(caproMessage, serverPortRoudi);
+        this->sendToAllMatchingInterfacePorts(caproMessage);
+    });
+
+    //m_portIntrospection.removeServer(clientPortUser);
+
+    // delete publisher port from list after STOP_OFFER was processed
+    m_portPool->removeServerPort(serverPortData);
+
+    LogDebug() << "Destroyed Server port";
+}
+
+runtime::IpcMessage PortManager::findService(const capro::ServiceDescription& service) noexcept
 {
     // send find to all interfaces
-    capro::CaproMessage caproMessage(capro::CaproMessageType::FIND, {service, instance, roudi::Wildcard});
+    capro::CaproMessage caproMessage(capro::CaproMessageType::FIND, service);
 
     for (auto interfacePortData : m_portPool->getInterfacePortDataList())
     {
@@ -604,7 +828,7 @@ runtime::IpcMessage PortManager::findService(const capro::IdString_t& service,
     runtime::IpcMessage instanceMessage;
 
     ServiceRegistry::InstanceSet_t instances;
-    m_serviceRegistry.find(instances, service, instance);
+    m_serviceRegistry.find(instances, service.getServiceIDString(), service.getInstanceIDString());
     for (auto& instance : instances)
     {
         instanceMessage << instance;
@@ -637,11 +861,6 @@ PortManager::acquirePublisherPortData(const capro::ServiceDescription& service,
         return cxx::error<PortPoolError>(PortPoolError::UNIQUE_PUBLISHER_PORT_ALREADY_EXISTS);
     }
 
-    if (!service.isValid())
-    {
-        return cxx::error<PortPoolError>(PortPoolError::SERVICE_DESCRIPTION_INVALID);
-    }
-
     // we can create a new port
     auto maybePublisherPortData = m_portPool->addPublisherPort(
         service, payloadDataSegmentMemoryManager, runtimeName, publisherOptions, portConfigInfo.memoryInfo);
@@ -667,11 +886,6 @@ PortManager::acquireSubscriberPortData(const capro::ServiceDescription& service,
                                        const RuntimeName_t& runtimeName,
                                        const PortConfigInfo& portConfigInfo) noexcept
 {
-    if (!service.isValid())
-    {
-        return cxx::error<PortPoolError>(PortPoolError::SERVICE_DESCRIPTION_INVALID);
-    }
-
     auto maybeSubscriberPortData =
         m_portPool->addSubscriberPort(service, runtimeName, subscriberOptions, portConfigInfo.memoryInfo);
     if (!maybeSubscriberPortData.has_error())
@@ -690,6 +904,55 @@ PortManager::acquireSubscriberPortData(const capro::ServiceDescription& service,
     return maybeSubscriberPortData;
 }
 
+cxx::expected<ClientPortRouDiType::MemberType_t*, PortPoolError>
+PortManager::acquireClientPortData(const capro::ServiceDescription& service,
+                                   const popo::ClientOptions& clientOptions,
+                                   const RuntimeName_t& runtimeName,
+                                   mepoo::MemoryManager* const payloadDataSegmentMemoryManager,
+                                   const PortConfigInfo& portConfigInfo) noexcept
+{
+    auto maybeClientPortData =
+        m_portPool->addClientPort(service, runtimeName, clientOptions, payloadDataSegmentMemoryManager, portConfigInfo.memoryInfo);
+    if (!maybeClientPortData.has_error())
+    {
+        auto clientPortData = maybeClientPortData.value();
+        if (clientPortData)
+        {
+            //m_portIntrospection.addClient(*clientPortData);
+
+            // we do discovery here for trying to connect with publishers if subscribe on create is desired
+            ClientPortRouDiType clientPort(clientPortData);
+            doDiscoveryForClientPort(clientPort);
+        }
+    }
+
+    return maybeClientPortData;
+}
+
+cxx::expected<ServerPortRouDiType::MemberType_t*, PortPoolError>
+PortManager::acquireServerPortData(const capro::ServiceDescription& service,
+                                   const popo::ServerOptions& serverOptions,
+                                   const RuntimeName_t& runtimeName,
+                                   mepoo::MemoryManager* const payloadDataSegmentMemoryManager,
+                                   const PortConfigInfo& portConfigInfo) noexcept
+{
+    auto maybeServerPortData =
+        m_portPool->addServerPort(service, runtimeName, serverOptions, payloadDataSegmentMemoryManager, portConfigInfo.memoryInfo);
+    if (!maybeServerPortData.has_error())
+    {
+        auto serverPortData = maybeServerPortData.value();
+        if (serverPortData)
+        {
+            //m_portIntrospection.addServer(*clientPortData);
+
+            // we do discovery here for trying to connect with publishers if subscribe on create is desired
+            ServerPortRouDiType serverPort(serverPortData);
+            doDiscoveryForServerPort(serverPort);
+        }
+    }
+
+    return maybeServerPortData;
+}
 
 /// @todo return a cxx::expected
 popo::InterfacePortData* PortManager::acquireInterfacePortData(capro::Interfaces interface,

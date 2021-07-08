@@ -145,6 +145,16 @@ cxx::vector<SubscriberPortType::MemberType_t*, MAX_SUBSCRIBERS> PortPool::getSub
     return m_portPoolData->m_subscriberPortMembers.content();
 }
 
+cxx::vector<ClientPortRouDiType::MemberType_t*, MAX_CLIENTS> PortPool::getClientPortDataList() noexcept
+{
+    return m_portPoolData->m_clientPortMembers.content();
+}
+
+cxx::vector<ServerPortRouDiType::MemberType_t*, MAX_SERVERS> PortPool::getServerPortDataList() noexcept
+{
+    return m_portPoolData->m_serverPortMembers.content();
+}
+
 cxx::expected<PublisherPortRouDiType::MemberType_t*, PortPoolError>
 PortPool::addPublisherPort(const capro::ServiceDescription& serviceDescription,
                            mepoo::MemoryManager* const memoryManager,
@@ -185,6 +195,48 @@ PortPool::addSubscriberPort(const capro::ServiceDescription& serviceDescription,
     }
 }
 
+cxx::expected<ClientPortRouDiType::MemberType_t*, PortPoolError>
+PortPool::addClientPort(const capro::ServiceDescription& serviceDescription,
+                            const RuntimeName_t& runtimeName,
+                            const popo::ClientOptions& clientOptions,
+                            mepoo::MemoryManager* const memoryManager,
+                            const mepoo::MemoryInfo& memoryInfo) noexcept
+{
+    if (m_portPoolData->m_clientPortMembers.hasFreeSpace())
+    {
+        auto clientPortData = m_portPoolData->m_clientPortMembers.insert(
+            serviceDescription, runtimeName, clientOptions, memoryManager, memoryInfo);
+
+        return cxx::success<ClientPortRouDiType::MemberType_t*>(clientPortData);
+    }
+    else
+    {
+        errorHandler(Error::kPORT_POOL__CLIENTLIST_OVERFLOW, nullptr, ErrorLevel::MODERATE);
+        return cxx::error<PortPoolError>(PortPoolError::CLIENT_PORT_LIST_FULL);
+    }
+}
+
+cxx::expected<ServerPortRouDiType::MemberType_t*, PortPoolError>
+PortPool::addServerPort(const capro::ServiceDescription& serviceDescription,
+                            const RuntimeName_t& runtimeName,
+                            const popo::ServerOptions& serverOptions,
+                            mepoo::MemoryManager* const memoryManager,
+                            const mepoo::MemoryInfo& memoryInfo) noexcept
+{
+    if (m_portPoolData->m_serverPortMembers.hasFreeSpace())
+    {
+        auto serverPortData = m_portPoolData->m_serverPortMembers.insert(
+            serviceDescription, runtimeName, serverOptions, memoryManager, memoryInfo);
+
+        return cxx::success<ServerPortRouDiType::MemberType_t*>(serverPortData);
+    }
+    else
+    {
+        errorHandler(Error::kPORT_POOL__SERVERLIST_OVERFLOW, nullptr, ErrorLevel::MODERATE);
+        return cxx::error<PortPoolError>(PortPoolError::SERVER_PORT_LIST_FULL);
+    }
+}
+
 void PortPool::removePublisherPort(PublisherPortRouDiType::MemberType_t* const portData) noexcept
 {
     m_portPoolData->m_publisherPortMembers.erase(portData);
@@ -195,5 +247,14 @@ void PortPool::removeSubscriberPort(SubscriberPortType::MemberType_t* const port
     m_portPoolData->m_subscriberPortMembers.erase(portData);
 }
 
+void PortPool::removeClientPort(ClientPortRouDiType::MemberType_t* const portData) noexcept
+{
+    m_portPoolData->m_clientPortMembers.erase(portData);
+}
+
+void PortPool::removeServerPort(ServerPortRouDiType::MemberType_t* const portData) noexcept
+{
+    m_portPoolData->m_serverPortMembers.erase(portData);
+}
 } // namespace roudi
 } // namespace iox

@@ -234,12 +234,6 @@ void RouDi::processMessage(const runtime::IpcMessage& message,
             capro::ServiceDescription service(cxx::Serialization(message.getElementAtIndex(2)));
             cxx::Serialization portConfigInfoSerialization(message.getElementAtIndex(7));
 
-            if (!service.isValid())
-            {
-                LogError() << "Invalid service description '" << message.getElementAtIndex(2).c_str() << "' provided\n";
-                break;
-            }
-
             popo::PublisherOptions options;
             uint64_t historyCapacity{};
             if (!cxx::convert::fromString(message.getElementAtIndex(3).c_str(), historyCapacity))
@@ -286,11 +280,6 @@ void RouDi::processMessage(const runtime::IpcMessage& message,
             capro::ServiceDescription service(cxx::Serialization(message.getElementAtIndex(2)));
             cxx::Serialization portConfigInfoSerialization(message.getElementAtIndex(8));
 
-            if (!service.isValid())
-            {
-                LogError() << "Invalid service description '" << message.getElementAtIndex(2).c_str() << "' provided\n";
-                break;
-            }
 
             popo::SubscriberOptions options;
             uint64_t historyRequest;
@@ -330,6 +319,61 @@ void RouDi::processMessage(const runtime::IpcMessage& message,
             options.queueFullPolicy = static_cast<popo::QueueFullPolicy>(queueFullPolicy);
 
             m_prcMgr->addSubscriberForProcess(
+                runtimeName, service, options, iox::runtime::PortConfigInfo(portConfigInfoSerialization));
+        }
+        break;
+    }
+    case runtime::IpcMessageType::CREATE_CLIENT:
+    {
+        if (message.getNumberOfElements() != 12)
+        {
+            LogError() << "Wrong number of parameters for \"IpcMessageType::CREATE_CLIENT\" from \"" << runtimeName
+                       << "\"received!";
+        }
+        else
+        {
+            capro::ServiceDescription service(cxx::Serialization(message.getElementAtIndex(2)));
+            cxx::Serialization portConfigInfoSerialization(message.getElementAtIndex(11));
+
+
+            popo::ClientOptions options;
+            options.historyRequest = std::stoull(message.getElementAtIndex(3));
+            options.queueCapacity = std::stoull(message.getElementAtIndex(4));
+            options.historyCapacity = std::stoull(message.getElementAtIndex(5));
+            options.nodeName = NodeName_t(cxx::TruncateToCapacity, message.getElementAtIndex(6));
+            options.connectOnCreate = (0U == std::stoull(message.getElementAtIndex(7))) ? false : true;
+            options.fireAndForget = (0U == std::stoull(message.getElementAtIndex(8))) ? false : true;
+            options.queueFullPolicy = static_cast<popo::QueueFullPolicy>(std::stoul(message.getElementAtIndex(9)));
+            options.serverTooSlowPolicy = static_cast<popo::SubscriberTooSlowPolicy>(std::stoul(message.getElementAtIndex(10)));
+
+            m_prcMgr->addClientForProcess(
+                runtimeName, service, options, iox::runtime::PortConfigInfo(portConfigInfoSerialization));
+        }
+        break;
+    }
+    case runtime::IpcMessageType::CREATE_SERVER:
+    {
+        if (message.getNumberOfElements() != 11)
+        {
+            LogError() << "Wrong number of parameters for \"IpcMessageType::CREATE_SERVER\" from \"" << runtimeName
+                       << "\"received!";
+        }
+        else
+        {
+            capro::ServiceDescription service(cxx::Serialization(message.getElementAtIndex(2)));
+            cxx::Serialization portConfigInfoSerialization(message.getElementAtIndex(10));
+
+
+            popo::ServerOptions options;
+            options.historyRequest = std::stoull(message.getElementAtIndex(3));
+            options.queueCapacity = std::stoull(message.getElementAtIndex(4));
+            options.historyCapacity = std::stoull(message.getElementAtIndex(5));
+            options.nodeName = NodeName_t(cxx::TruncateToCapacity, message.getElementAtIndex(6));
+            options.offerOnCreate = (0U == std::stoull(message.getElementAtIndex(7))) ? false : true;
+            options.queueFullPolicy = static_cast<popo::QueueFullPolicy>(std::stoul(message.getElementAtIndex(8)));
+            options.clientTooSlowPolicy = static_cast<popo::SubscriberTooSlowPolicy>(std::stoul(message.getElementAtIndex(9)));
+
+            m_prcMgr->addServerForProcess(
                 runtimeName, service, options, iox::runtime::PortConfigInfo(portConfigInfoSerialization));
         }
         break;
@@ -393,17 +437,16 @@ void RouDi::processMessage(const runtime::IpcMessage& message,
     }
     case runtime::IpcMessageType::FIND_SERVICE:
     {
-        if (message.getNumberOfElements() != 4)
+        if (message.getNumberOfElements() != 3)
         {
             LogError() << "Wrong number of parameters for \"IpcMessageType::FIND_SERVICE\" from \"" << runtimeName
                        << "\"received!";
         }
         else
         {
-            capro::IdString_t service{cxx::TruncateToCapacity, message.getElementAtIndex(2)};
-            capro::IdString_t instance{cxx::TruncateToCapacity, message.getElementAtIndex(3)};
+            capro::ServiceDescription service(cxx::Serialization(message.getElementAtIndex(2)));
 
-            m_prcMgr->findServiceForProcess(runtimeName, service, instance);
+            m_prcMgr->findServiceForProcess(runtimeName, service);
         }
         break;
     }

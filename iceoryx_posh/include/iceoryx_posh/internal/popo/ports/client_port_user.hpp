@@ -17,15 +17,15 @@
 #ifndef IOX_POSH_POPO_PORTS_CLIENT_PORT_USER_HPP
 #define IOX_POSH_POPO_PORTS_CLIENT_PORT_USER_HPP
 
-#include "iceoryx_hoofs/cxx/expected.hpp"
-#include "iceoryx_hoofs/cxx/helplets.hpp"
-#include "iceoryx_hoofs/cxx/optional.hpp"
-#include "iceoryx_hoofs/error_handling/error_handling.hpp"
 #include "iceoryx_posh/internal/popo/building_blocks/chunk_receiver.hpp"
 #include "iceoryx_posh/internal/popo/building_blocks/chunk_sender.hpp"
 #include "iceoryx_posh/internal/popo/ports/base_port.hpp"
 #include "iceoryx_posh/internal/popo/ports/client_port_data.hpp"
-#include "iceoryx_posh/popo/rpc_header.hpp"
+#include "iceoryx_posh/mepoo/chunk_header.hpp"
+#include "iceoryx_hoofs/cxx/expected.hpp"
+#include "iceoryx_hoofs/cxx/helplets.hpp"
+#include "iceoryx_hoofs/cxx/optional.hpp"
+#include "iceoryx_hoofs/error_handling/error_handling.hpp"
 
 namespace iox
 {
@@ -41,7 +41,7 @@ class ClientPortUser : public BasePort
   public:
     using MemberType_t = ClientPortData;
 
-    explicit ClientPortUser(MemberType_t& clientPortData) noexcept;
+    explicit ClientPortUser(cxx::not_null<MemberType_t* const> clientPortDataPtr) noexcept;
 
     ClientPortUser(const ClientPortUser& other) = delete;
     ClientPortUser& operator=(const ClientPortUser&) = delete;
@@ -52,19 +52,20 @@ class ClientPortUser : public BasePort
     /// @brief Allocate a chunk, the ownerhip of the SharedChunk remains in the ClientPortUser for being able to
     /// cleanup if the user process disappears
     /// @param[in] userPayloadSize, size of the user-paylaod without additional headers
-    /// @param[in] userPayloadAlignment, alignment of the user-paylaod without additional headers
-    /// @return on success pointer to a RequestHeader which can be used to access the chunk-header, user-header and
+    /// @return on success pointer to a ChunkHeader which can be used to access the chunk-header, user-header and
     /// user-payload fields, error if not
-    cxx::expected<RequestHeader*, AllocationError> allocateRequest(const uint32_t userPayloadSize,
-                                                                   const uint32_t userPayloadAlignment) noexcept;
+    cxx::expected<mepoo::ChunkHeader*, AllocationError> allocateRequest(const uint32_t userPayloadSize,
+                                                                        const uint32_t userPayloadAlignment,
+                                                                        const uint32_t userHeaderSize = 0U,
+                                                                        const uint32_t userHeaderAlignment = 1U) noexcept;
 
     /// @brief Free an allocated request without sending it
-    /// @param[in] requestHeader, pointer to the RequestHeader to free
-    void freeRequest(RequestHeader* const requestHeader) noexcept;
+    /// @param[in] chunkHeader, pointer to the ChunkHeader to free
+    void freeRequest(mepoo::ChunkHeader* const requestHeader) noexcept;
 
     /// @brief Send an allocated request chunk to the server port
-    /// @param[in] requestHeader, pointer to the RequestHeader to send
-    void sendRequest(RequestHeader* const requestHeader) noexcept;
+    /// @param[in] chunkHeader, pointer to the ChunkHeader to send
+    void sendRequest(mepoo::ChunkHeader* const requestHeader) noexcept;
 
     /// @brief try to connect to the server Caution: There can be delays between calling connect and a change
     /// in the connection state
@@ -84,15 +85,15 @@ class ClientPortUser : public BasePort
     /// @return ConnectionState
     ConnectionState getConnectionState() const noexcept;
 
-    /// @brief Tries to get the next response from the queue. If there is a new one, the ResponseHeader of the oldest
+    /// @brief Tries to get the next response from the queue. If there is a new one, the ChunkHeader of the oldest
     /// response in the queue is returned (FiFo queue)
-    /// @return cxx::expected that has a new ResponseHeader if there are new responses in the underlying queue,
+    /// @return optional that has a new chunk header or no value if there are no new responses in the underlying queue,
     /// ChunkReceiveResult on error
-    cxx::expected<const ResponseHeader*, ChunkReceiveResult> getResponse() noexcept;
+    cxx::expected<const mepoo::ChunkHeader*, ChunkReceiveResult> getResponse() noexcept;
 
     /// @brief Release a response that was obtained with getResponseChunk
-    /// @param[in] requestHeader, pointer to the ResponseHeader to release
-    void releaseResponse(const ResponseHeader* const responseHeader) noexcept;
+    /// @param[in] chunkHeader, pointer to the ChunkHeader to release
+    void releaseChunk(const mepoo::ChunkHeader* const responseHeader) noexcept;
 
     /// @brief check if there are responses in the queue
     /// @return if there are responses in the queue return true, otherwise false
@@ -112,6 +113,9 @@ class ClientPortUser : public BasePort
     /// @return true if a condition variable attached, otherwise false
     bool isConditionVariableSet() const noexcept;
 
+    /// @brief Release all the responses that are currently queued up.
+    void releaseQueuedResponses() noexcept;
+
   private:
     const MemberType_t* getMembers() const noexcept;
     MemberType_t* getMembers() noexcept;
@@ -123,4 +127,4 @@ class ClientPortUser : public BasePort
 } // namespace popo
 } // namespace iox
 
-#endif // IOX_POSH_POPO_PORTS_CLIENT_PORT_USER_HPP
+#endif // IOX_POSH_POPO_PORTS_PUBLISHER_PORT_USER_HPP

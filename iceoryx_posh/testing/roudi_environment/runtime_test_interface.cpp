@@ -17,7 +17,7 @@
 
 #include "iceoryx_posh/testing/roudi_environment/runtime_test_interface.hpp"
 #include "iceoryx_hoofs/cxx/helplets.hpp"
-#include "iceoryx_posh/internal/runtime/posh_runtime_impl.hpp"
+#include "iceoryx_posh/runtime/posh_runtime.hpp"
 
 namespace iox
 {
@@ -36,10 +36,6 @@ std::map<RuntimeName_t, PoshRuntime*> RuntimeTestInterface::s_runtimes;
 RuntimeTestInterface::RuntimeTestInterface()
 {
     std::lock_guard<std::mutex> lock(RuntimeTestInterface::s_runtimeAccessMutex);
-
-    iox::cxx::Expects(PoshRuntime::getRuntimeFactory() == PoshRuntime::defaultRuntimeFactory
-                      && "The RuntimeTestInterface can only be used in combination with the "
-                         "PoshRuntime::defaultRuntimeFactory! Someone else already switched the factory!");
 
     PoshRuntime::setRuntimeFactory(RuntimeTestInterface::runtimeFactoryGetInstance);
 }
@@ -116,7 +112,7 @@ PoshRuntime& RuntimeTestInterface::runtimeFactoryGetInstance(cxx::optional<const
     }
     else
     {
-        auto runtimeImpl = new runtime::PoshRuntimeImpl(name, runtime::RuntimeLocation::SAME_PROCESS_LIKE_ROUDI);
+        auto runtimeImpl = new runtime::PoshRuntime(name, false);
         RuntimeTestInterface::s_runtimes.insert({*name.value(), runtimeImpl});
 
         RuntimeTestInterface::t_activeRuntime = runtimeImpl;

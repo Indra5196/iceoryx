@@ -41,12 +41,21 @@ class PublisherPortRouDi;
 class PublisherPortUser;
 class SubscriberPortRouDi;
 class SubscriberPortUser;
+class ClientPortRouDi;
+class ClientPortUser;
+class ServerPortRouDi;
+class ServerPortUser;
 } // namespace popo
 
 using PublisherPortRouDiType = iox::popo::PublisherPortRouDi;
 using PublisherPortUserType = iox::popo::PublisherPortUser;
 using SubscriberPortRouDiType = iox::popo::SubscriberPortRouDi;
 using SubscriberPortUserType = iox::popo::SubscriberPortUser;
+using ClientPortRouDiType = iox::popo::ClientPortRouDi;
+using ClientPortUserType = iox::popo::ClientPortUser;
+using ServerPortRouDiType = iox::popo::ServerPortRouDi;
+using ServerPortUserType = iox::popo::ServerPortUser;
+
 using UniquePortId = popo::TypedUniqueId<popo::BasePortData>;
 
 using SubscriberPortType = iox::build::CommunicationPolicy;

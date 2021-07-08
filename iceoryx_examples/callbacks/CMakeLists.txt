@@ -43,12 +43,45 @@ target_link_libraries(iox-cpp-callbacks-listener-as-class-member
 )
 target_compile_options(iox-cpp-callbacks-listener-as-class-member PRIVATE ${ICEORYX_WARNINGS} ${ICEORYX_SANITIZER_FLAGS})
 
+add_executable(iox-cpp-callbacks-client ./ice_callbacks_client.cpp)
+target_link_libraries(iox-cpp-callbacks-client
+    iceoryx_posh::iceoryx_posh
+)
+target_compile_options(iox-cpp-callbacks-client PRIVATE ${ICEORYX_WARNINGS} ${ICEORYX_SANITIZER_FLAGS})
 
+add_executable(iox-cpp-callbacks-client_2 ./ice_callbacks_client_2.cpp)
+target_link_libraries(iox-cpp-callbacks-client_2
+    iceoryx_posh::iceoryx_posh
+)
+target_compile_options(iox-cpp-callbacks-client_2 PRIVATE ${ICEORYX_WARNINGS} ${ICEORYX_SANITIZER_FLAGS})
+
+add_executable(iox-cpp-callbacks-server ./ice_callbacks_server.cpp)
+target_link_libraries(iox-cpp-callbacks-server
+    iceoryx_posh::iceoryx_posh
+)
+target_compile_options(iox-cpp-callbacks-server PRIVATE ${ICEORYX_WARNINGS} ${ICEORYX_SANITIZER_FLAGS})
+
+add_executable(iox-cpp-callbacks-server-untyped ./ice_callbacks_server_untyped.cpp)
+target_link_libraries(iox-cpp-callbacks-server-untyped
+    iceoryx_posh::iceoryx_posh
+)
+target_compile_options(iox-cpp-callbacks-server-untyped PRIVATE ${ICEORYX_WARNINGS} ${ICEORYX_SANITIZER_FLAGS})
+
+add_executable(iox-cpp-callbacks-client-untyped ./ice_callbacks_client_untyped.cpp)
+target_link_libraries(iox-cpp-callbacks-client-untyped
+    iceoryx_posh::iceoryx_posh
+)
+target_compile_options(iox-cpp-callbacks-client-untyped PRIVATE ${ICEORYX_WARNINGS} ${ICEORYX_SANITIZER_FLAGS})
 
 set_target_properties(
     iox-cpp-callbacks-listener-as-class-member
     iox-cpp-callbacks-subscriber
     iox-cpp-callbacks-publisher
+    iox-cpp-callbacks-client
+    iox-cpp-callbacks-client_2
+    iox-cpp-callbacks-server
+    iox-cpp-callbacks-client-untyped
+    iox-cpp-callbacks-server-untyped
   PROPERTIES
     CXX_STANDARD_REQUIRED ON
     CXX_STANDARD ${ICEORYX_CXX_STANDARD}
@@ -56,6 +89,6 @@ set_target_properties(
 )
 
 install(
-    TARGETS iox-cpp-callbacks-publisher iox-cpp-callbacks-subscriber iox-cpp-callbacks-listener-as-class-member
+    TARGETS iox-cpp-callbacks-publisher iox-cpp-callbacks-subscriber iox-cpp-callbacks-listener-as-class-member iox-cpp-callbacks-client iox-cpp-callbacks-client_2 iox-cpp-callbacks-server iox-cpp-callbacks-server-untyped iox-cpp-callbacks-client-untyped
     RUNTIME DESTINATION bin
 )

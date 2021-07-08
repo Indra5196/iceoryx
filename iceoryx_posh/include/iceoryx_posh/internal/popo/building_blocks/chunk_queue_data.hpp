@@ -37,6 +37,9 @@ struct ChunkQueueData : public LockingPolicy
     using LockGuard_t = std::lock_guard<const ThisType_t>;
     using ChunkQueueDataProperties_t = ChunkQueueDataProperties;
 
+    // Will be used to return responses to a particular client
+    UniquePortId m_portId;
+
     ChunkQueueData(const QueueFullPolicy policy, const cxx::VariantQueueTypes queueType) noexcept;
 
     static constexpr uint64_t MAX_CAPACITY = ChunkQueueDataProperties_t::MAX_QUEUE_CAPACITY;

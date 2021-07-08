@@ -345,14 +345,12 @@ void ProcessManager::updateLivelinessOfProcess(const RuntimeName_t& name) noexce
         [&]() { LogWarn() << "Received Keepalive from unknown process " << name; });
 }
 
-void ProcessManager::findServiceForProcess(const RuntimeName_t& name,
-                                           const capro::IdString_t& service,
-                                           const capro::IdString_t& instance) noexcept
+void ProcessManager::findServiceForProcess(const RuntimeName_t& name, const capro::ServiceDescription& service) noexcept
 {
     searchForProcessAndThen(
         name,
         [&](Process& process) {
-            runtime::IpcMessage instanceString({m_portManager.findService(service, instance)});
+            runtime::IpcMessage instanceString({m_portManager.findService(service)});
             process.sendViaIpcChannel(instanceString);
             LogDebug() << "Sent InstanceString to application " << name;
         },
@@ -550,6 +548,106 @@ void ProcessManager::addPublisherForProcess(const RuntimeName_t& name,
             }
         },
         [&]() { LogWarn() << "Unknown application " << name << " requested a PublisherPort."; });
+}
+
+void ProcessManager::addClientForProcess(const RuntimeName_t& name,
+                                             const capro::ServiceDescription& service,
+                                             const popo::ClientOptions& clientOptions,
+                                             const PortConfigInfo& portConfigInfo) noexcept
+{
+    searchForProcessAndThen(
+        name,
+        [&](Process& process) {
+
+            auto segmentInfo = m_segmentManager->getSegmentInformationWithWriteAccessForUser(process.getUser());
+
+            if (!segmentInfo.m_memoryManager.has_value())
+            {
+                // Tell the app no writable shared memory segment was found
+                runtime::IpcMessage sendBuffer;
+                sendBuffer << runtime::IpcMessageTypeToString(runtime::IpcMessageType::ERROR);
+                sendBuffer << runtime::IpcMessageErrorTypeToString(
+                    runtime::IpcMessageErrorType::REQUEST_CLIENT_NO_WRITABLE_SHM_SEGMENT);
+                process.sendViaIpcChannel(sendBuffer);
+                return;
+            }
+
+            // create a ClientPort
+            auto maybeClient =
+                m_portManager.acquireClientPortData(service, clientOptions, name, &segmentInfo.m_memoryManager.value().get(), portConfigInfo);
+
+            if (!maybeClient.has_error())
+            {
+                // send SubscriberPort to app as a serialized relative pointer
+                auto offset = rp::BaseRelativePointer::getOffset(m_mgmtSegmentId, maybeClient.value());
+
+                runtime::IpcMessage sendBuffer;
+                sendBuffer << runtime::IpcMessageTypeToString(runtime::IpcMessageType::CREATE_CLIENT_ACK)
+                           << std::to_string(offset) << std::to_string(m_mgmtSegmentId);
+                process.sendViaIpcChannel(sendBuffer);
+
+                LogDebug() << "Created new ClientPort for application " << name;
+            }
+            else
+            {
+                runtime::IpcMessage sendBuffer;
+                sendBuffer << runtime::IpcMessageTypeToString(runtime::IpcMessageType::ERROR);
+                sendBuffer << runtime::IpcMessageErrorTypeToString(runtime::IpcMessageErrorType::CLIENT_LIST_FULL);
+                process.sendViaIpcChannel(sendBuffer);
+                LogError() << "Could not create ClientPort for application " << name;
+            }
+        },
+        [&]() { LogWarn() << "Unknown application " << name << " requested a ClientPort."; });
+}
+
+void ProcessManager::addServerForProcess(const RuntimeName_t& name,
+                                             const capro::ServiceDescription& service,
+                                             const popo::ServerOptions& serverOptions,
+                                             const PortConfigInfo& portConfigInfo) noexcept
+{
+    searchForProcessAndThen(
+        name,
+        [&](Process& process) {
+
+            auto segmentInfo = m_segmentManager->getSegmentInformationWithWriteAccessForUser(process.getUser());
+
+            if (!segmentInfo.m_memoryManager.has_value())
+            {
+                // Tell the app no writable shared memory segment was found
+                runtime::IpcMessage sendBuffer;
+                sendBuffer << runtime::IpcMessageTypeToString(runtime::IpcMessageType::ERROR);
+                sendBuffer << runtime::IpcMessageErrorTypeToString(
+                    runtime::IpcMessageErrorType::REQUEST_SERVER_NO_WRITABLE_SHM_SEGMENT);
+                process.sendViaIpcChannel(sendBuffer);
+                return;
+            }
+
+            // create a Server
+            auto maybeServer =
+                m_portManager.acquireServerPortData(service, serverOptions, name, &segmentInfo.m_memoryManager.value().get(), portConfigInfo);
+
+            if (!maybeServer.has_error())
+            {
+                // send SubscriberPort to app as a serialized relative pointer
+                auto offset = rp::BaseRelativePointer::getOffset(m_mgmtSegmentId, maybeServer.value());
+
+                runtime::IpcMessage sendBuffer;
+                sendBuffer << runtime::IpcMessageTypeToString(runtime::IpcMessageType::CREATE_SERVER_ACK)
+                           << std::to_string(offset) << std::to_string(m_mgmtSegmentId);
+                process.sendViaIpcChannel(sendBuffer);
+
+                LogDebug() << "Created new ServerPort for application " << name;
+            }
+            else
+            {
+                runtime::IpcMessage sendBuffer;
+                sendBuffer << runtime::IpcMessageTypeToString(runtime::IpcMessageType::ERROR);
+                sendBuffer << runtime::IpcMessageErrorTypeToString(runtime::IpcMessageErrorType::SERVER_LIST_FULL);
+                process.sendViaIpcChannel(sendBuffer);
+                LogError() << "Could not create ServerPort for application " << name;
+            }
+        },
+        [&]() { LogWarn() << "Unknown application " << name << " requested a ServerPort."; });
 }
 
 void ProcessManager::addConditionVariableForProcess(const RuntimeName_t& runtimeName) noexcept

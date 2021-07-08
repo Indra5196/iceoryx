@@ -17,7 +17,6 @@
 #ifndef IOX_HOOFS_WIN_PLATFORM_PTHREAD_HPP
 #define IOX_HOOFS_WIN_PLATFORM_PTHREAD_HPP
 
-#include "iceoryx_hoofs/platform/unique_system_id.hpp"
 #include "iceoryx_hoofs/platform/win32_errorHandling.hpp"
 #include "iceoryx_hoofs/platform/windows.hpp"
 
@@ -31,9 +30,8 @@
 
 struct pthread_mutex_t
 {
-    HANDLE handle = INVALID_HANDLE_VALUE;
+    HANDLE handle;
     bool isInterprocessMutex = false;
-    UniqueSystemId uniqueId;
 };
 
 struct pthread_mutexattr_t

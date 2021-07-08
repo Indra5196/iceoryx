@@ -17,15 +17,15 @@
 #ifndef IOX_POSH_POPO_PORTS_SERVER_PORT_USER_HPP
 #define IOX_POSH_POPO_PORTS_SERVER_PORT_USER_HPP
 
-#include "iceoryx_hoofs/cxx/expected.hpp"
-#include "iceoryx_hoofs/cxx/helplets.hpp"
-#include "iceoryx_hoofs/cxx/optional.hpp"
-#include "iceoryx_hoofs/error_handling/error_handling.hpp"
 #include "iceoryx_posh/internal/popo/building_blocks/chunk_receiver.hpp"
 #include "iceoryx_posh/internal/popo/building_blocks/chunk_sender.hpp"
 #include "iceoryx_posh/internal/popo/ports/base_port.hpp"
 #include "iceoryx_posh/internal/popo/ports/server_port_data.hpp"
 #include "iceoryx_posh/mepoo/chunk_header.hpp"
+#include "iceoryx_hoofs/cxx/expected.hpp"
+#include "iceoryx_hoofs/cxx/helplets.hpp"
+#include "iceoryx_hoofs/cxx/optional.hpp"
+#include "iceoryx_hoofs/error_handling/error_handling.hpp"
 
 namespace iox
 {
@@ -53,11 +53,11 @@ class ServerPortUser : public BasePort
     /// request in the queue is returned (FiFo queue)
     /// @return optional that has a new chunk header or no value if there are no new requests in the underlying queue,
     /// ChunkReceiveResult on error
-    cxx::expected<cxx::optional<const RequestHeader*>, ChunkReceiveResult> getRequest() noexcept;
+    cxx::expected<const mepoo::ChunkHeader*, ChunkReceiveResult> getRequest() noexcept;
 
     /// @brief Release a request that was obtained with getRequest
     /// @param[in] chunkHeader, pointer to the ChunkHeader to release
-    void releaseRequest(const RequestHeader* const requestHeader) noexcept;
+    void releaseChunk(const mepoo::ChunkHeader* const requestHeader) noexcept;
 
     /// @brief check if there are requests in the queue
     /// @return if there are requests in the queue return true, otherwise false
@@ -72,15 +72,18 @@ class ServerPortUser : public BasePort
     /// @param[in] userPayloadSize, size of the user user-paylaod without additional headers
     /// @return on success pointer to a ChunkHeader which can be used to access the chunk-header, user-header and
     /// user-payload fields, error if not
-    cxx::expected<ResponseHeader*, AllocationError> allocateResponse(const uint32_t userPayloadSize) noexcept;
+    cxx::expected<mepoo::ChunkHeader*, AllocationError> allocateResponse(const uint32_t userPayloadSize,
+                                                                         const uint32_t userPayloadAlignment,
+                                                                         const uint32_t userHeaderSize,
+                                                                         const uint32_t userHeaderAlignment) noexcept;
 
     /// @brief Free an allocated response without sending it
     /// @param[in] chunkHeader, pointer to the ChunkHeader to free
-    void freeResponse(ResponseHeader* const responseHeader) noexcept;
+    void freeResponse(mepoo::ChunkHeader* const responseHeader) noexcept;
 
     /// @brief Send an allocated request chunk to the server port
     /// @param[in] chunkHeader, pointer to the ChunkHeader to send
-    void sendResponse(ResponseHeader* const responseHeader) noexcept;
+    void sendResponse(mepoo::ChunkHeader* const responseHeader, UniquePortId portId) noexcept;
 
     /// @brief offer this server port in the system
     void offer() noexcept;
@@ -106,6 +109,9 @@ class ServerPortUser : public BasePort
     /// @brief check if there's a condition variable set
     /// @return true if a condition variable attached, otherwise false
     bool isConditionVariableSet() const noexcept;
+
+    /// @brief Release all the requests that are currently queued up.
+    void releaseQueuedRequests() noexcept;
 
   private:
     const MemberType_t* getMembers() const noexcept;

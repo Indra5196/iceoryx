@@ -17,7 +17,9 @@
 #ifndef IOX_POSH_RUNTIME_POSH_RUNTIME_HPP
 #define IOX_POSH_RUNTIME_POSH_RUNTIME_HPP
 
-#include "iceoryx_hoofs/cxx/optional.hpp"
+#include "iceoryx_hoofs/cxx/method_callback.hpp"
+#include "iceoryx_hoofs/cxx/string.hpp"
+#include "iceoryx_hoofs/internal/concurrent/periodic_task.hpp"
 #include "iceoryx_posh/capro/service_description.hpp"
 #include "iceoryx_posh/iceoryx_posh_types.hpp"
 #include "iceoryx_posh/internal/popo/building_blocks/condition_variable_data.hpp"
@@ -25,12 +27,19 @@
 #include "iceoryx_posh/internal/popo/ports/interface_port.hpp"
 #include "iceoryx_posh/internal/popo/ports/publisher_port_user.hpp"
 #include "iceoryx_posh/internal/popo/ports/subscriber_port_user.hpp"
+#include "iceoryx_posh/internal/popo/ports/client_port_user.hpp"
+#include "iceoryx_posh/internal/popo/ports/server_port_user.hpp"
 #include "iceoryx_posh/internal/runtime/ipc_runtime_interface.hpp"
 #include "iceoryx_posh/internal/runtime/node_property.hpp"
+#include "iceoryx_posh/internal/runtime/shared_memory_user.hpp"
 #include "iceoryx_posh/popo/subscriber_options.hpp"
 #include "iceoryx_posh/runtime/port_config_info.hpp"
 
 #include <atomic>
+#include <map>
+#include <mutex>
+#include <thread>
+#include <vector>
 
 namespace iox
 {
@@ -51,21 +60,10 @@ enum class FindServiceError
     INSTANCE_CONTAINER_OVERFLOW
 };
 
-/// @brief Used to search for any string (wildcard)
-struct Any_t
-{
-};
-
 /// @brief The runtime that is needed for each application to communicate with the RouDi daemon
 class PoshRuntime
 {
   public:
-    PoshRuntime(const PoshRuntime&) = delete;
-    PoshRuntime& operator=(const PoshRuntime&) = delete;
-    PoshRuntime(PoshRuntime&&) = delete;
-    PoshRuntime& operator=(PoshRuntime&&) = delete;
-    virtual ~PoshRuntime() noexcept = default;
-
     /// @brief returns active runtime
     ///
     /// @return active runtime
@@ -87,24 +85,21 @@ class PoshRuntime
     void shutdown() noexcept;
 
     /// @brief find all services that match the provided service description
-    /// @param[in] service service string to search for (wildcards allowed)
-    /// @param[in] instance instance string to search for (wildcards allowed)
+    /// @param[in] serviceDescription service to search for
     /// @return cxx::expected<InstanceContainer, FindServiceError>
     /// InstanceContainer: on success, container that is filled with all matching instances
     /// FindServiceError: if any, encountered during the operation
-    virtual cxx::expected<InstanceContainer, FindServiceError>
-    findService(const cxx::variant<Any_t, capro::IdString_t> service,
-                const cxx::variant<Any_t, capro::IdString_t> instance) noexcept = 0;
+    cxx::expected<InstanceContainer, FindServiceError>
+    findService(const capro::ServiceDescription& serviceDescription) noexcept;
 
     /// @brief offer the provided service, sends the offer from application to RouDi daemon
-    /// @param[in] service valid ServiceDescription to offer
+    /// @param[in] serviceDescription service to offer
     /// @return bool, if service is offered returns true else false
-    virtual bool offerService(const capro::ServiceDescription& serviceDescription) noexcept = 0;
+    bool offerService(const capro::ServiceDescription& serviceDescription) noexcept;
 
     /// @brief stop offering the provided service
-    /// @param[in] service valid ServiceDescription that shall be no more offered
-    /// @return bool, if service is not offered anymore returns true else false
-    virtual bool stopOfferService(const capro::ServiceDescription& serviceDescription) noexcept = 0;
+    /// @param[in] serviceDescription of the service that shall be no more offered
+    void stopOfferService(const capro::ServiceDescription& serviceDescription) noexcept;
 
     /// @brief request the RouDi daemon to create a publisher port
     /// @param[in] serviceDescription service description for the new publisher port
@@ -112,10 +107,10 @@ class PoshRuntime
     /// @param[in] portConfigInfo configuration information for the port
     /// (i.e. what type of port is requested, device where its payload memory is located on etc.)
     /// @return pointer to a created publisher port user
-    virtual PublisherPortUserType::MemberType_t*
+    PublisherPortUserType::MemberType_t*
     getMiddlewarePublisher(const capro::ServiceDescription& service,
-                           const popo::PublisherOptions& publisherOptions = {},
-                           const PortConfigInfo& portConfigInfo = {}) noexcept = 0;
+                           const popo::PublisherOptions& publisherOptions = popo::PublisherOptions(),
+                           const PortConfigInfo& portConfigInfo = PortConfigInfo()) noexcept;
 
     /// @brief request the RouDi daemon to create a subscriber port
     /// @param[in] serviceDescription service description for the new subscriber port
@@ -123,50 +118,71 @@ class PoshRuntime
     /// @param[in] portConfigInfo configuration information for the port
     /// (what type of port is requested, device where its payload memory is located on etc.)
     /// @return pointer to a created subscriber port data
-    virtual SubscriberPortUserType::MemberType_t*
+    SubscriberPortUserType::MemberType_t*
     getMiddlewareSubscriber(const capro::ServiceDescription& service,
-                            const popo::SubscriberOptions& subscriberOptions = {},
-                            const PortConfigInfo& portConfigInfo = {}) noexcept = 0;
+                            const popo::SubscriberOptions& subscriberOptions = popo::SubscriberOptions(),
+                            const PortConfigInfo& portConfigInfo = PortConfigInfo()) noexcept;
+
+
+    ClientPortUserType::MemberType_t*
+    getMiddlewareClient(const capro::ServiceDescription& service,
+                            const popo::ClientOptions& clientOptions = popo::ClientOptions(),
+                            const PortConfigInfo& portConfigInfo = PortConfigInfo()) noexcept;
+
+    ServerPortUserType::MemberType_t*
+    getMiddlewareServer(const capro::ServiceDescription& service,
+                            const popo::ServerOptions& serverOptions = popo::ServerOptions(),
+                            const PortConfigInfo& portConfigInfo = PortConfigInfo()) noexcept;
 
     /// @brief request the RouDi daemon to create an interface port
     /// @param[in] interface interface to create
     /// @param[in] nodeName name of the node where the interface should belong to
     /// @return pointer to a created interface port data
-    virtual popo::InterfacePortData* getMiddlewareInterface(const capro::Interfaces interface,
-                                                            const NodeName_t& nodeName = {}) noexcept = 0;
+    popo::InterfacePortData* getMiddlewareInterface(const capro::Interfaces interface,
+                                                    const NodeName_t& nodeName = {""}) noexcept;
 
     /// @brief request the RouDi daemon to create an application port
     /// @return pointer to a created application port data
-    virtual popo::ApplicationPortData* getMiddlewareApplication() noexcept = 0;
+    popo::ApplicationPortData* getMiddlewareApplication() noexcept;
 
     /// @brief request the RouDi daemon to create a condition variable
     /// @return pointer to a created condition variable data
-    virtual popo::ConditionVariableData* getMiddlewareConditionVariable() noexcept = 0;
+    popo::ConditionVariableData* getMiddlewareConditionVariable() noexcept;
 
     /// @brief request the RouDi daemon to create a node
     /// @param[in] nodeProperty class which contains all properties which the node should have
     /// @return pointer to the data of the node
-    virtual NodeData* createNode(const NodeProperty& nodeProperty) noexcept = 0;
+    NodeData* createNode(const NodeProperty& nodeProperty) noexcept;
 
     /// @brief requests the serviceRegistryChangeCounter from the shared memory
     /// @return pointer to the serviceRegistryChangeCounter
-    virtual const std::atomic<uint64_t>* getServiceRegistryChangeCounter() noexcept = 0;
+    const std::atomic<uint64_t>* getServiceRegistryChangeCounter() noexcept;
 
     /// @brief send a request to the RouDi daemon and get the response
     ///        currently each request is followed by a response
     /// @param[in] msg request message to send
     /// @param[out] response from the RouDi daemon
     /// @return true if sucessful request/response, false on error
-    virtual bool sendRequestToRouDi(const IpcMessage& msg, IpcMessage& answer) noexcept = 0;
+    bool sendRequestToRouDi(const IpcMessage& msg, IpcMessage& answer) noexcept;
+
+  public:
+    PoshRuntime(const PoshRuntime&) = delete;
+    PoshRuntime& operator=(const PoshRuntime&) = delete;
+    PoshRuntime(PoshRuntime&&) = delete;
+    PoshRuntime& operator=(PoshRuntime&&) = delete;
+    virtual ~PoshRuntime() noexcept;
+
+    friend class roudi::RuntimeTestInterface;
 
   protected:
-    friend class roudi::RuntimeTestInterface;
     using factory_t = PoshRuntime& (*)(cxx::optional<const RuntimeName_t*>);
 
-    // Protected constructor for derived classes
-    PoshRuntime(cxx::optional<const RuntimeName_t*> name) noexcept;
+    // Protected constructor for IPC setup
+    PoshRuntime(cxx::optional<const RuntimeName_t*> name, const bool doMapSharedMemoryIntoThread = true) noexcept;
 
     static PoshRuntime& defaultRuntimeFactory(cxx::optional<const RuntimeName_t*> name) noexcept;
+
+    static RuntimeName_t& defaultRuntimeInstanceName() noexcept;
 
     /// @brief gets current runtime factory. If the runtime factory is not yet initialized it is set to
     /// defaultRuntimeFactory.
@@ -186,11 +202,45 @@ class PoshRuntime
     /// @return active runtime
     static PoshRuntime& getInstance(cxx::optional<const RuntimeName_t*> name) noexcept;
 
+  private:
+    cxx::expected<PublisherPortUserType::MemberType_t*, IpcMessageErrorType>
+    requestPublisherFromRoudi(const IpcMessage& sendBuffer) noexcept;
+
+    cxx::expected<SubscriberPortUserType::MemberType_t*, IpcMessageErrorType>
+    requestSubscriberFromRoudi(const IpcMessage& sendBuffer) noexcept;
+
+    cxx::expected<ClientPortUserType::MemberType_t*, IpcMessageErrorType>
+    requestClientFromRoudi(const IpcMessage& sendBuffer) noexcept;
+
+    cxx::expected<ServerPortUserType::MemberType_t*, IpcMessageErrorType>
+    requestServerFromRoudi(const IpcMessage& sendBuffer) noexcept;
+
+    cxx::expected<popo::ConditionVariableData*, IpcMessageErrorType>
+    requestConditionVariableFromRoudi(const IpcMessage& sendBuffer) noexcept;
+
     /// @brief checks the given application name for certain constraints like length or if is empty
     const RuntimeName_t& verifyInstanceName(cxx::optional<const RuntimeName_t*> name) noexcept;
 
     const RuntimeName_t m_appName;
+    mutable std::mutex m_appIpcRequestMutex;
+
+    // IPC channel interface for POSIX IPC from RouDi
+    IpcRuntimeInterface m_ipcChannelInterface;
+    // Shared memory interface for POSIX IPC from RouDi
+    SharedMemoryUser m_ShmInterface;
+    popo::ApplicationPort m_applicationPort;
+
     std::atomic<bool> m_shutdownRequested{false};
+    void sendKeepAliveAndHandleShutdownPreparation() noexcept;
+    static_assert(PROCESS_KEEP_ALIVE_INTERVAL > roudi::DISCOVERY_INTERVAL, "Keep alive interval too small");
+
+    /// @note the m_keepAliveTask should always be the last member, so that it will be the first member to be destroyed
+    concurrent::PeriodicTask<cxx::MethodCallback<void>> m_keepAliveTask{
+        concurrent::PeriodicTaskAutoStart,
+        PROCESS_KEEP_ALIVE_INTERVAL,
+        "KeepAlive",
+        *this,
+        &PoshRuntime::sendKeepAliveAndHandleShutdownPreparation};
 };
 
 } // namespace runtime

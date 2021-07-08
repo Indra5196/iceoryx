@@ -25,54 +25,44 @@ namespace iox
 namespace cxx
 {
 template <typename... Types>
-inline constexpr variant<Types...>::variant(const variant& rhs) noexcept
-    : m_type_index(rhs.m_type_index)
+inline variant<Types...>::variant(const variant& f_rhs) noexcept
+    : m_type_index(f_rhs.m_type_index)
 {
     if (m_type_index != INVALID_VARIANT_INDEX)
     {
         internal::call_at_index<0, Types...>::copyConstructor(
-            m_type_index, const_cast<internal::byte_t*>(rhs.m_storage), m_storage);
+            m_type_index, const_cast<internal::byte_t*>(f_rhs.m_storage), m_storage);
     }
 }
 
 template <typename... Types>
 template <uint64_t N, typename... CTorArguments>
-inline constexpr variant<Types...>::variant(const in_place_index<N>&, CTorArguments&&... args) noexcept
+inline variant<Types...>::variant(const in_place_index<N>&, CTorArguments&&... f_args) noexcept
 {
-    emplace_at_index<N>(std::forward<CTorArguments>(args)...);
+    emplace_at_index<N>(std::forward<CTorArguments>(f_args)...);
 }
 
 template <typename... Types>
 template <typename T, typename... CTorArguments>
-inline constexpr variant<Types...>::variant(const in_place_type<T>&, CTorArguments&&... args) noexcept
+inline variant<Types...>::variant(const in_place_type<T>&, CTorArguments&&... f_args) noexcept
 {
-    emplace<T>(std::forward<CTorArguments>(args)...);
+    emplace<T>(std::forward<CTorArguments>(f_args)...);
 }
 
 template <typename... Types>
-template <typename T,
-          typename,
-          typename std::enable_if_t<!internal::is_in_place_index<std::decay_t<T>>::value, bool>,
-          typename std::enable_if_t<!internal::is_in_place_type<std::decay_t<T>>::value, bool>>
-inline constexpr variant<Types...>::variant(T&& arg) noexcept
-    : variant(in_place_type<std::decay_t<T>>(), std::forward<T>(arg))
+variant<Types...>& variant<Types...>::operator=(const variant& f_rhs) noexcept
 {
-}
-
-template <typename... Types>
-inline constexpr variant<Types...>& variant<Types...>::operator=(const variant& rhs) noexcept
-{
-    if (this != &rhs)
+    if (this != &f_rhs)
     {
-        if (m_type_index != rhs.m_type_index)
+        if (m_type_index != f_rhs.m_type_index)
         {
             call_element_destructor();
-            m_type_index = rhs.m_type_index;
+            m_type_index = f_rhs.m_type_index;
 
             if (m_type_index != INVALID_VARIANT_INDEX)
             {
                 internal::call_at_index<0, Types...>::copyConstructor(
-                    m_type_index, const_cast<internal::byte_t*>(rhs.m_storage), m_storage);
+                    m_type_index, const_cast<internal::byte_t*>(f_rhs.m_storage), m_storage);
             }
         }
         else
@@ -80,7 +70,7 @@ inline constexpr variant<Types...>& variant<Types...>::operator=(const variant& 
             if (m_type_index != INVALID_VARIANT_INDEX)
             {
                 internal::call_at_index<0, Types...>::copy(
-                    m_type_index, const_cast<internal::byte_t*>(rhs.m_storage), m_storage);
+                    m_type_index, const_cast<internal::byte_t*>(f_rhs.m_storage), m_storage);
             }
         }
     }
@@ -88,34 +78,34 @@ inline constexpr variant<Types...>& variant<Types...>::operator=(const variant& 
 }
 
 template <typename... Types>
-inline constexpr variant<Types...>::variant(variant&& rhs) noexcept
-    : m_type_index{std::move(rhs.m_type_index)}
+variant<Types...>::variant(variant&& f_rhs) noexcept
+    : m_type_index{std::move(f_rhs.m_type_index)}
 {
     if (m_type_index != INVALID_VARIANT_INDEX)
     {
-        internal::call_at_index<0, Types...>::moveConstructor(m_type_index, rhs.m_storage, m_storage);
+        internal::call_at_index<0, Types...>::moveConstructor(m_type_index, f_rhs.m_storage, m_storage);
     }
 }
 
 template <typename... Types>
-inline constexpr variant<Types...>& variant<Types...>::operator=(variant&& rhs) noexcept
+variant<Types...>& variant<Types...>::operator=(variant&& f_rhs) noexcept
 {
-    if (this != &rhs)
+    if (this != &f_rhs)
     {
-        if (m_type_index != rhs.m_type_index)
+        if (m_type_index != f_rhs.m_type_index)
         {
             call_element_destructor();
-            m_type_index = std::move(rhs.m_type_index);
+            m_type_index = std::move(f_rhs.m_type_index);
             if (m_type_index != INVALID_VARIANT_INDEX)
             {
-                internal::call_at_index<0, Types...>::moveConstructor(m_type_index, rhs.m_storage, m_storage);
+                internal::call_at_index<0, Types...>::moveConstructor(m_type_index, f_rhs.m_storage, m_storage);
             }
         }
         else
         {
             if (m_type_index != INVALID_VARIANT_INDEX)
             {
-                internal::call_at_index<0, Types...>::move(m_type_index, rhs.m_storage, m_storage);
+                internal::call_at_index<0, Types...>::move(m_type_index, f_rhs.m_storage, m_storage);
             }
         }
     }
@@ -129,7 +119,7 @@ inline variant<Types...>::~variant() noexcept
 }
 
 template <typename... Types>
-inline void variant<Types...>::call_element_destructor() noexcept
+void variant<Types...>::call_element_destructor() noexcept
 {
     if (m_type_index != INVALID_VARIANT_INDEX)
     {
@@ -140,7 +130,7 @@ inline void variant<Types...>::call_element_destructor() noexcept
 template <typename... Types>
 template <typename T>
 inline typename std::enable_if<!std::is_same<T, variant<Types...>&>::value, variant<Types...>>::type&
-variant<Types...>::operator=(T&& rhs) noexcept
+variant<Types...>::operator=(T&& f_rhs) noexcept
 {
     if (m_type_index == INVALID_VARIANT_INDEX)
     {
@@ -150,7 +140,7 @@ variant<Types...>::operator=(T&& rhs) noexcept
     if (!has_bad_variant_element_access<T>())
     {
         auto storage = static_cast<T*>(static_cast<void*>(m_storage));
-        *storage = (std::forward<T>(rhs));
+        *storage = (std::forward<T>(f_rhs));
     }
     else
     {
@@ -164,14 +154,14 @@ variant<Types...>::operator=(T&& rhs) noexcept
 
 template <typename... Types>
 template <uint64_t TypeIndex, typename... CTorArguments>
-inline bool variant<Types...>::emplace_at_index(CTorArguments&&... args) noexcept
+inline bool variant<Types...>::emplace_at_index(CTorArguments&&... f_args) noexcept
 {
     static_assert(TypeIndex <= sizeof...(Types), "TypeIndex is out of bounds");
 
     using T = typename internal::get_type_at_index<0, TypeIndex, Types...>::type;
 
     call_element_destructor();
-    new (m_storage) T(std::forward<CTorArguments>(args)...);
+    new (m_storage) T(std::forward<CTorArguments>(f_args)...);
     m_type_index = TypeIndex;
 
     return true;
@@ -179,7 +169,7 @@ inline bool variant<Types...>::emplace_at_index(CTorArguments&&... args) noexcep
 
 template <typename... Types>
 template <typename T, typename... CTorArguments>
-inline bool variant<Types...>::emplace(CTorArguments&&... args) noexcept
+inline bool variant<Types...>::emplace(CTorArguments&&... f_args) noexcept
 {
     if (m_type_index != INVALID_VARIANT_INDEX && has_bad_variant_element_access<T>())
     {
@@ -194,7 +184,7 @@ inline bool variant<Types...>::emplace(CTorArguments&&... args) noexcept
         call_element_destructor();
     }
 
-    new (m_storage) T(std::forward<CTorArguments>(args)...);
+    new (m_storage) T(std::forward<CTorArguments>(f_args)...);
     m_type_index = internal::get_index_of_type<0, T, Types...>::index;
 
     return true;
@@ -216,8 +206,8 @@ inline typename internal::get_type_at_index<0, TypeIndex, Types...>::type* varia
 
 template <typename... Types>
 template <uint64_t TypeIndex>
-inline const typename internal::get_type_at_index<0, TypeIndex, Types...>::type* variant<Types...>::get_at_index() const
-    noexcept
+inline const typename internal::get_type_at_index<0, TypeIndex, Types...>::type*
+variant<Types...>::get_at_index() const noexcept
 {
     using T = typename internal::get_type_at_index<0, TypeIndex, Types...>::type;
     return const_cast<const T*>(const_cast<variant*>(this)->template get_at_index<TypeIndex>());
@@ -246,18 +236,18 @@ inline T* variant<Types...>::get() noexcept
 
 template <typename... Types>
 template <typename T>
-inline T* variant<Types...>::get_if(T* default_value) noexcept
+inline T* variant<Types...>::get_if(T* f_default_value) noexcept
 {
-    return const_cast<T*>(const_cast<const variant*>(this)->get_if<T>(const_cast<const T*>(default_value)));
+    return const_cast<T*>(const_cast<const variant*>(this)->get_if<T>(const_cast<const T*>(f_default_value)));
 }
 
 template <typename... Types>
 template <typename T>
-inline const T* variant<Types...>::get_if(const T* default_value) const noexcept
+inline const T* variant<Types...>::get_if(const T* f_default_value) const noexcept
 {
     if (has_bad_variant_element_access<T>())
     {
-        return default_value;
+        return f_default_value;
     }
 
     return this->get<T>();
@@ -278,15 +268,15 @@ inline bool variant<Types...>::has_bad_variant_element_access() const noexcept
 }
 
 template <typename... Types>
-inline void variant<Types...>::error_message(const char* source, const char* msg) noexcept
+inline void variant<Types...>::error_message(const char* f_source, const char* f_msg) noexcept
 {
-    std::cerr << source << " ::: " << msg << std::endl;
+    std::cerr << f_source << " ::: " << f_msg << std::endl;
 }
 
 template <typename T, typename... Types>
-inline constexpr bool holds_alternative(const variant<Types...>& variant) noexcept
+inline constexpr bool holds_alternative(const variant<Types...>& f_variant) noexcept
 {
-    return variant.template get<T>() != nullptr;
+    return f_variant.template get<T>() != nullptr;
 }
 } // namespace cxx
 } // namespace iox

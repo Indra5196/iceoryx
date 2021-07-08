@@ -24,13 +24,22 @@
 #include "iceoryx_posh/internal/popo/ports/interface_port.hpp"
 #include "iceoryx_posh/internal/popo/ports/publisher_port_data.hpp"
 #include "iceoryx_posh/internal/popo/ports/publisher_port_roudi.hpp"
+#include "iceoryx_posh/internal/popo/ports/client_port_data.hpp"
+#include "iceoryx_posh/internal/popo/ports/client_port_roudi.hpp"
+#include "iceoryx_posh/internal/popo/ports/server_port_data.hpp"
+#include "iceoryx_posh/internal/popo/ports/server_port_roudi.hpp"
 #include "iceoryx_posh/internal/popo/ports/subscriber_port_data.hpp"
+#include "iceoryx_posh/internal/popo/ports/client_port_data.hpp"
+#include "iceoryx_posh/internal/popo/ports/server_port_data.hpp"
 #include "iceoryx_posh/internal/popo/ports/subscriber_port_multi_producer.hpp"
 #include "iceoryx_posh/internal/popo/ports/subscriber_port_single_producer.hpp"
 #include "iceoryx_posh/internal/roudi/port_pool_data.hpp"
 #include "iceoryx_posh/internal/runtime/node_data.hpp"
 #include "iceoryx_posh/popo/publisher_options.hpp"
 #include "iceoryx_posh/popo/subscriber_options.hpp"
+#include "iceoryx_posh/popo/client_options.hpp"
+#include "iceoryx_posh/popo/server_options.hpp"
+#include "iceoryx_hoofs/cxx/type_traits.hpp"
 
 namespace iox
 {
@@ -44,12 +53,13 @@ enum class PortPoolError : uint8_t
     UNIQUE_PUBLISHER_PORT_ALREADY_EXISTS,
     PUBLISHER_PORT_LIST_FULL,
     SUBSCRIBER_PORT_LIST_FULL,
+    CLIENT_PORT_LIST_FULL,
+    SERVER_PORT_LIST_FULL,
     INTERFACE_PORT_LIST_FULL,
     APPLICATION_PORT_LIST_FULL,
     NODE_DATA_LIST_FULL,
     CONDITION_VARIABLE_LIST_FULL,
     EVENT_VARIABLE_LIST_FULL,
-    SERVICE_DESCRIPTION_INVALID,
 };
 
 class PortPool
@@ -64,6 +74,8 @@ class PortPool
     /// update this member if the publisher ports actually changed
     cxx::vector<PublisherPortRouDiType::MemberType_t*, MAX_PUBLISHERS> getPublisherPortDataList() noexcept;
     cxx::vector<SubscriberPortType::MemberType_t*, MAX_SUBSCRIBERS> getSubscriberPortDataList() noexcept;
+    cxx::vector<ClientPortRouDiType::MemberType_t*, MAX_CLIENTS> getClientPortDataList() noexcept;
+    cxx::vector<ServerPortRouDiType::MemberType_t*, MAX_SERVERS> getServerPortDataList() noexcept;
     cxx::vector<popo::InterfacePortData*, MAX_INTERFACE_NUMBER> getInterfacePortDataList() noexcept;
     cxx::vector<popo::ApplicationPortData*, MAX_PROCESS_NUMBER> getApplicationPortDataList() noexcept;
     cxx::vector<runtime::NodeData*, MAX_NODE_NUMBER> getNodeDataList() noexcept;
@@ -82,6 +94,21 @@ class PortPool
                       const RuntimeName_t& runtimeName,
                       const popo::SubscriberOptions& subscriberOptions,
                       const mepoo::MemoryInfo& memoryInfo = mepoo::MemoryInfo()) noexcept;
+
+    cxx::expected<ClientPortRouDiType::MemberType_t*, PortPoolError>
+    addClientPort(const capro::ServiceDescription& serviceDescription,
+                      const RuntimeName_t& runtimeName,
+                      const popo::ClientOptions& clientOptions,
+                      mepoo::MemoryManager* const memoryManager,
+                      const mepoo::MemoryInfo& memoryInfo = mepoo::MemoryInfo()) noexcept;
+
+    cxx::expected<ServerPortRouDiType::MemberType_t*, PortPoolError>
+    addServerPort(const capro::ServiceDescription& serviceDescription,
+                      const RuntimeName_t& runtimeName,
+                      const popo::ServerOptions& serverOptions,
+                      mepoo::MemoryManager* const memoryManager,
+                      const mepoo::MemoryInfo& memoryInfo = mepoo::MemoryInfo()) noexcept;
+
 
     template <typename T, std::enable_if_t<std::is_same<T, iox::build::ManyToManyPolicy>::value>* = nullptr>
     iox::popo::SubscriberPortData* constructSubscriber(const capro::ServiceDescription& serviceDescription,
@@ -110,6 +137,8 @@ class PortPool
 
     void removePublisherPort(PublisherPortRouDiType::MemberType_t* const portData) noexcept;
     void removeSubscriberPort(SubscriberPortType::MemberType_t* const portData) noexcept;
+    void removeClientPort(ClientPortRouDiType::MemberType_t* const portData) noexcept;
+    void removeServerPort(ServerPortRouDiType::MemberType_t* const portData) noexcept;
     void removeInterfacePort(popo::InterfacePortData* const portData) noexcept;
     void removeApplicationPort(popo::ApplicationPortData* const portData) noexcept;
     void removeNodeData(runtime::NodeData* const nodeData) noexcept;

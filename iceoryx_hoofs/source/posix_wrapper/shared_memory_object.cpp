@@ -32,7 +32,7 @@ namespace iox
 namespace posix
 {
 constexpr void* SharedMemoryObject::NO_ADDRESS_HINT;
-constexpr uint64_t SIGBUS_ERROR_MESSAGE_LENGTH = 1024U + platform::IOX_MAX_SHM_NAME_LENGTH;
+constexpr uint64_t SIGBUS_ERROR_MESSAGE_LENGTH = 1024U;
 
 static char sigbusErrorMessage[SIGBUS_ERROR_MESSAGE_LENGTH];
 static std::mutex sigbusHandlerMutex;
@@ -47,14 +47,14 @@ static void memsetSigbusHandler(int)
 SharedMemoryObject::SharedMemoryObject(const SharedMemory::Name_t& name,
                                        const uint64_t memorySizeInBytes,
                                        const AccessMode accessMode,
-                                       const OpenMode openMode,
+                                       const OwnerShip ownerShip,
                                        const void* baseAddressHint,
-                                       const mode_t permissions) noexcept
+                                       const mode_t permissions)
     : m_memorySizeInBytes(cxx::align(memorySizeInBytes, Allocator::MEMORY_ALIGNMENT))
 {
     m_isInitialized = true;
 
-    SharedMemory::create(name, accessMode, openMode, permissions, m_memorySizeInBytes)
+    SharedMemory::create(name, accessMode, ownerShip, permissions, m_memorySizeInBytes)
         .and_then([this](auto& sharedMemory) { m_sharedMemory.emplace(std::move(sharedMemory)); })
         .or_else([this](auto&) {
             std::cerr << "Unable to create SharedMemoryObject since we could not acquire a SharedMemory resource"
@@ -76,20 +76,18 @@ SharedMemoryObject::SharedMemoryObject(const SharedMemory::Name_t& name,
 
     if (m_isInitialized == false)
     {
-        auto flags = std::cerr.flags();
         std::cerr << "Unable to create a shared memory object with the following properties [ name = " << name
                   << ", sizeInBytes = " << memorySizeInBytes
                   << ", access mode = " << ACCESS_MODE_STRING[static_cast<uint64_t>(accessMode)]
-                  << ", open mode = " << OPEN_MODE_STRING[static_cast<uint64_t>(openMode)]
-                  << ", baseAddressHint = " << std::hex << baseAddressHint << std::dec
+                  << ", ownership = " << OWNERSHIP_STRING[static_cast<uint64_t>(ownerShip)]
+                  << ", baseAddressHint = " << std::hex << baseAddressHint
                   << ", permissions = " << std::bitset<sizeof(mode_t)>(permissions) << " ]" << std::endl;
-        std::cerr.setf(flags);
         return;
     }
 
     m_allocator.emplace(m_memoryMap->getBaseAddress(), m_memorySizeInBytes);
 
-    if (m_isInitialized && m_sharedMemory->hasOwnership())
+    if (ownerShip == OwnerShip::MINE && m_isInitialized)
     {
         std::clog << "Reserving " << m_memorySizeInBytes << " bytes in the shared memory [" << name << "]" << std::endl;
         if (platform::IOX_SHM_WRITE_ZEROS_ON_CREATION)
@@ -104,12 +102,12 @@ SharedMemoryObject::SharedMemoryObject(const SharedMemory::Name_t& name,
                 SIGBUS_ERROR_MESSAGE_LENGTH,
                 "While setting the acquired shared memory to zero a fatal SIGBUS signal appeared caused by memset. The "
                 "shared memory object with the following properties [ name = %s, sizeInBytes = %llu, access mode = %s, "
-                "open mode = %s, baseAddressHint = %p, permissions = %lu ] maybe requires more memory than it is "
+                "ownership = %s, baseAddressHint = %p, permissions = %lu ] maybe requires more memory than it is "
                 "currently available in the system.\n",
                 name.c_str(),
                 static_cast<unsigned long long>(memorySizeInBytes),
                 ACCESS_MODE_STRING[static_cast<uint64_t>(accessMode)],
-                OPEN_MODE_STRING[static_cast<uint64_t>(openMode)],
+                OWNERSHIP_STRING[static_cast<uint64_t>(ownerShip)],
                 baseAddressHint,
                 std::bitset<sizeof(mode_t)>(permissions).to_ulong());
 
@@ -119,46 +117,40 @@ SharedMemoryObject::SharedMemoryObject(const SharedMemory::Name_t& name,
     }
 }
 
-void* SharedMemoryObject::allocate(const uint64_t size, const uint64_t alignment) noexcept
+void* SharedMemoryObject::allocate(const uint64_t size, const uint64_t alignment)
 {
     return m_allocator->allocate(size, alignment);
 }
 
-void SharedMemoryObject::finalizeAllocation() noexcept
+void SharedMemoryObject::finalizeAllocation()
 {
     m_allocator->finalizeAllocation();
 }
 
-bool SharedMemoryObject::isInitialized() const noexcept
+bool SharedMemoryObject::isInitialized() const
 {
     return m_isInitialized;
 }
 
-Allocator* SharedMemoryObject::getAllocator() noexcept
+Allocator* SharedMemoryObject::getAllocator()
 {
     return &*m_allocator;
 }
 
-void* SharedMemoryObject::getBaseAddress() const noexcept
+void* SharedMemoryObject::getBaseAddress() const
 {
     return m_memoryMap->getBaseAddress();
 }
 
-uint64_t SharedMemoryObject::getSizeInBytes() const noexcept
+uint64_t SharedMemoryObject::getSizeInBytes() const
 {
     return m_memorySizeInBytes;
 }
 
-int32_t SharedMemoryObject::getFileHandle() const noexcept
+int32_t SharedMemoryObject::getFileHandle() const
 {
     return m_sharedMemory->getHandle();
 }
-
-bool SharedMemoryObject::hasOwnership() const noexcept
-{
-    return m_sharedMemory->hasOwnership();
-}
-
 
 } // namespace posix
 } // namespace iox

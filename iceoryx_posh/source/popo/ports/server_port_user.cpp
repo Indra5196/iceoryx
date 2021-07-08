@@ -40,14 +40,15 @@ ServerPortUser::MemberType_t* ServerPortUser::getMembers() noexcept
 }
 
 
-cxx::expected<cxx::optional<const RequestHeader*>, ChunkReceiveResult> ServerPortUser::getRequest() noexcept
+cxx::expected<const mepoo::ChunkHeader*, ChunkReceiveResult> ServerPortUser::getRequest() noexcept
 {
-    return cxx::success<cxx::optional<const RequestHeader*>>(cxx::nullopt_t());
+    return m_chunkReceiver.tryGet();
 }
 
-void ServerPortUser::releaseRequest(const RequestHeader* const /*requestHeader*/) noexcept
+void ServerPortUser::releaseChunk(const mepoo::ChunkHeader* const requestHeader) noexcept
 {
     /// @todo
+    m_chunkReceiver.release(requestHeader);
 }
 
 bool ServerPortUser::hasNewRequests() const noexcept
@@ -60,21 +61,44 @@ bool ServerPortUser::hasLostRequestsSinceLastCall() noexcept
     return m_chunkReceiver.hasLostChunks();
 }
 
-cxx::expected<ResponseHeader*, AllocationError>
-ServerPortUser::allocateResponse(const uint32_t /*userPayloadSize*/) noexcept
+cxx::expected<mepoo::ChunkHeader*, AllocationError>
+ServerPortUser::allocateResponse(const uint32_t userPayloadSize,
+                                const uint32_t userPayloadAlignment,
+                                const uint32_t userHeaderSize = 0U,
+                                const uint32_t userHeaderAlignment = 1U) noexcept
 {
     /// @todo
-    return cxx::error<AllocationError>(AllocationError::RUNNING_OUT_OF_CHUNKS);
+    auto result = m_chunkSender.tryAllocate(
+        getUniqueID(), userPayloadSize, userPayloadAlignment, userHeaderSize, userHeaderAlignment);
+
+    // static_cast<ResponseHeader*>(result->userHeader())->setFireAndForget(getMembers()->m_fireAndForget);
+    return result;
 }
 
-void ServerPortUser::freeResponse(ResponseHeader* const /*responseHeader*/) noexcept
+
+void ServerPortUser::freeResponse(mepoo::ChunkHeader* const responseHeader) noexcept
 {
     /// @todo
+    m_chunkSender.release(responseHeader);
 }
 
-void ServerPortUser::sendResponse(ResponseHeader* const /*responseHeader*/) noexcept
+void ServerPortUser::sendResponse(mepoo::ChunkHeader* const responseHeader, UniquePortId portId) noexcept
 {
     /// @todo
+    const auto offeringRequested = getMembers()->m_offeringRequested.load(std::memory_order_relaxed);
+
+    if (offeringRequested)
+    {
+        m_chunkSender.sendToPort(responseHeader, portId);
+    }
+    else
+    {
+        // if the publisher port is not offered, we do not send the chunk but we put them in the history
+        // this is needed e.g. for AUTOSAR Adaptive fields
+        // just always calling send and relying that there are no subscribers if not offered does not work, as the list
+        // of subscribers is updated asynchronously by RouDi (only RouDi has write access to the list of subscribers)
+        m_chunkSender.pushToHistory(responseHeader);
+    }
 }
 
 void ServerPortUser::offer() noexcept
@@ -117,6 +141,11 @@ void ServerPortUser::unsetConditionVariable() noexcept
 bool ServerPortUser::isConditionVariableSet() const noexcept
 {
     return m_chunkReceiver.isConditionVariableSet();
+}
+
+void ServerPortUser::releaseQueuedRequests() noexcept
+{
+    m_chunkReceiver.clear();
 }
 
 } // namespace popo

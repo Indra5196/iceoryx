@@ -201,6 +201,81 @@ inline void ChunkDistributor<ChunkDistributorDataType>::deliverToAllStoredQueues
 }
 
 template <typename ChunkDistributorDataType>
+inline void ChunkDistributor<ChunkDistributorDataType>::deliverToPort(mepoo::SharedChunk chunk, UniquePortId portId) noexcept
+{
+    typename ChunkDistributorDataType::QueueContainer_t remainingQueues;
+    {
+        typename MemberType_t::LockGuard_t lock(*getMembers());
+
+        bool willWaitForSubscriber =
+            getMembers()->m_subscriberTooSlowPolicy == SubscriberTooSlowPolicy::WAIT_FOR_SUBSCRIBER;
+        // send to all the queues
+        for (auto& queue : getMembers()->m_queues)
+        {
+            
+            if (queue.get()->m_portId == portId) 
+            {
+
+                bool isBlockingQueue =
+                    (willWaitForSubscriber && queue->m_queueFullPolicy == QueueFullPolicy::BLOCK_PUBLISHER);
+
+                if (!deliverToQueue(queue.get(), chunk))
+                {
+                    if (isBlockingQueue)
+                    {
+                        remainingQueues.emplace_back(queue);
+                    }
+                    else
+                    {
+                        ChunkQueuePusher_t(queue.get()).lostAChunk();
+                    }
+                }
+            }
+        }
+    }
+
+    // busy waiting until every queue is served
+    while (!remainingQueues.empty())
+    {
+        std::this_thread::yield();
+        {
+            // create intersection of current queues and remainingQueues
+            // reason: it is possible that since the last iteration some subscriber have already unsubscribed
+            //          and without this intersection we would deliver to dead queues
+            typename MemberType_t::LockGuard_t lock(*getMembers());
+            typename ChunkDistributorDataType::QueueContainer_t queueIntersection(remainingQueues.size());
+            std::sort(getMembers()->m_queues.begin(), getMembers()->m_queues.end());
+            std::sort(remainingQueues.begin(), remainingQueues.end());
+
+            auto iter = std::set_intersection(getMembers()->m_queues.begin(),
+                                              getMembers()->m_queues.end(),
+                                              remainingQueues.begin(),
+                                              remainingQueues.end(),
+                                              queueIntersection.begin());
+            queueIntersection.resize(static_cast<uint64_t>(iter - queueIntersection.begin()));
+            remainingQueues = queueIntersection;
+
+            // deliver to remaining queues
+            for (uint64_t i = remainingQueues.size() - 1U; !remainingQueues.empty(); --i)
+            {
+                if (deliverToQueue(remainingQueues[i].get(), chunk))
+                {
+                    remainingQueues.erase(remainingQueues.begin() + i);
+                }
+
+                // don't move this up since the for loop counts downwards and the algorithm would break
+                if (i == 0U)
+                {
+                    break;
+                }
+            }
+        }
+    }
+
+    addToHistoryWithoutDelivery(chunk);
+}
+
+template <typename ChunkDistributorDataType>
 inline bool ChunkDistributor<ChunkDistributorDataType>::deliverToQueue(cxx::not_null<ChunkQueueData_t* const> queue,
                                                                        mepoo::SharedChunk chunk) noexcept
 {

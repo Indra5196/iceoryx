@@ -47,7 +47,8 @@ int main(int argc, char* argv[])
     mepooConfig.addMemPool({ONE_KILOBYTE * 128, 200});
     mepooConfig.addMemPool({ONE_KILOBYTE * 512, 50});
     mepooConfig.addMemPool({ONE_MEGABYTE, 30});
-    mepooConfig.addMemPool({ONE_MEGABYTE * 4, 10});
+    mepooConfig.addMemPool({ONE_MEGABYTE * 4, 5});
+    mepooConfig.addMemPool({ONE_MEGABYTE * 8, 5});
 
     /// We want to use the Shared Memory Segment for the current user
     auto currentGroup = iox::posix::PosixGroup::getGroupOfCurrentProcess();

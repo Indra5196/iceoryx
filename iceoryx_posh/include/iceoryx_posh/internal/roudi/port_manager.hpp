@@ -29,6 +29,10 @@
 #include "iceoryx_posh/internal/popo/ports/interface_port.hpp"
 #include "iceoryx_posh/internal/popo/ports/publisher_port_roudi.hpp"
 #include "iceoryx_posh/internal/popo/ports/publisher_port_user.hpp"
+#include "iceoryx_posh/internal/popo/ports/client_port_roudi.hpp"
+#include "iceoryx_posh/internal/popo/ports/client_port_user.hpp"
+#include "iceoryx_posh/internal/popo/ports/server_port_roudi.hpp"
+#include "iceoryx_posh/internal/popo/ports/server_port_user.hpp"
 #include "iceoryx_posh/internal/popo/ports/subscriber_port_multi_producer.hpp"
 #include "iceoryx_posh/internal/popo/ports/subscriber_port_single_producer.hpp"
 #include "iceoryx_posh/internal/popo/ports/subscriber_port_user.hpp"
@@ -77,6 +81,22 @@ class PortManager
                               const RuntimeName_t& runtimeName,
                               const PortConfigInfo& portConfigInfo) noexcept;
 
+
+    cxx::expected<ClientPortRouDiType::MemberType_t*, PortPoolError>
+    acquireClientPortData(const capro::ServiceDescription& service,
+                              const popo::ClientOptions& clientOptions,
+                              const RuntimeName_t& runtimeName,
+                              mepoo::MemoryManager* const payloadDataSegmentMemoryManager,
+                              const PortConfigInfo& portConfigInfo) noexcept;
+
+    cxx::expected<ServerPortRouDiType::MemberType_t*, PortPoolError>
+    acquireServerPortData(const capro::ServiceDescription& service,
+                              const popo::ServerOptions& serverOptions,
+                              const RuntimeName_t& runtimeName,
+                              mepoo::MemoryManager* const payloadDataSegmentMemoryManager,
+                              const PortConfigInfo& portConfigInfo) noexcept;
+
+
     popo::InterfacePortData* acquireInterfacePortData(capro::Interfaces interface,
                                                       const RuntimeName_t& runtimeName,
                                                       const NodeName_t& nodeName = {""}) noexcept;
@@ -99,7 +119,7 @@ class PortManager
     void deletePortsOfProcess(const RuntimeName_t& runtimeName) noexcept;
 
     const std::atomic<uint64_t>* serviceRegistryChangeCounter() noexcept;
-    runtime::IpcMessage findService(const capro::IdString_t& service, const capro::IdString_t& instance) noexcept;
+    runtime::IpcMessage findService(const capro::ServiceDescription& service) noexcept;
 
   protected:
     void makeAllPublisherPortsToStopOffer() noexcept;
@@ -108,6 +128,10 @@ class PortManager
 
     void destroySubscriberPort(SubscriberPortType::MemberType_t* const subscriberPortData) noexcept;
 
+    void destroyClientPort(ClientPortRouDiType::MemberType_t* const clientPortData) noexcept;
+
+    void destroyServerPort(ServerPortRouDiType::MemberType_t* const serverPortData) noexcept;
+
     void handlePublisherPorts() noexcept;
 
     void doDiscoveryForPublisherPort(PublisherPortRouDiType& publisherPort) noexcept;
@@ -115,6 +139,14 @@ class PortManager
     void handleSubscriberPorts() noexcept;
 
     void doDiscoveryForSubscriberPort(SubscriberPortType& subscriberPort) noexcept;
+
+    void handleClientPorts() noexcept;
+
+    void doDiscoveryForClientPort(ClientPortRouDiType& clientPort) noexcept;
+
+    void handleServerPorts() noexcept;
+
+    void doDiscoveryForServerPort(ServerPortRouDiType& serverPort) noexcept;
 
     void handleInterfaces() noexcept;
 
@@ -130,14 +162,20 @@ class PortManager
     void sendToAllMatchingSubscriberPorts(const capro::CaproMessage& message,
                                           PublisherPortRouDiType& publisherSource) noexcept;
 
+    void sendToAllMatchingClientPorts(const capro::CaproMessage& message,
+                                          ServerPortRouDiType& serverSource) noexcept;
+
+    void sendToAllMatchingServerPorts(const capro::CaproMessage& message,
+                                          ClientPortRouDiType& clientSource) noexcept;
+
     void sendToAllMatchingInterfacePorts(const capro::CaproMessage& message) noexcept;
 
     void addEntryToServiceRegistry(const capro::IdString_t& service, const capro::IdString_t& instance) noexcept;
     void removeEntryFromServiceRegistry(const capro::IdString_t& service, const capro::IdString_t& instance) noexcept;
 
     template <typename T, std::enable_if_t<std::is_same<T, iox::build::OneToManyPolicy>::value>* = nullptr>
-    cxx::optional<RuntimeName_t> doesViolateCommunicationPolicy(const capro::ServiceDescription& service) const
-        noexcept;
+    cxx::optional<RuntimeName_t>
+    doesViolateCommunicationPolicy(const capro::ServiceDescription& service) const noexcept;
 
     template <typename T, std::enable_if_t<std::is_same<T, iox::build::ManyToManyPolicy>::value>* = nullptr>
     cxx::optional<RuntimeName_t>

@@ -16,12 +16,12 @@
 #ifndef IOX_POSH_POPO_PORTS_CLIENT_PORT_ROUDI_HPP
 #define IOX_POSH_POPO_PORTS_CLIENT_PORT_ROUDI_HPP
 
-#include "iceoryx_hoofs/cxx/optional.hpp"
 #include "iceoryx_posh/internal/capro/capro_message.hpp"
 #include "iceoryx_posh/internal/popo/building_blocks/chunk_receiver.hpp"
 #include "iceoryx_posh/internal/popo/building_blocks/chunk_sender.hpp"
 #include "iceoryx_posh/internal/popo/ports/base_port.hpp"
 #include "iceoryx_posh/internal/popo/ports/client_port_data.hpp"
+#include "iceoryx_hoofs/cxx/optional.hpp"
 
 namespace iox
 {
@@ -43,6 +43,10 @@ class ClientPortRouDi : public BasePort
     ClientPortRouDi(ClientPortRouDi&& rhs) = default;
     ClientPortRouDi& operator=(ClientPortRouDi&& rhs) = default;
     ~ClientPortRouDi() = default;
+
+    SubscriberTooSlowPolicy getServerTooSlowPolicy() const noexcept;
+
+    QueueFullPolicy getQueueFullPolicy() const noexcept;
 
     /// @brief get an optional CaPro message that requests changes to the desired connection state of the client
     /// @return CaPro message with desired connection state, empty optional if no state change

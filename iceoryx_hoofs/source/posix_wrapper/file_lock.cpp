@@ -15,7 +15,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "iceoryx_hoofs/posix_wrapper/file_lock.hpp"
-#include "iceoryx_hoofs/cxx/helplets.hpp"
 #include "iceoryx_hoofs/platform/errno.hpp"
 #include "iceoryx_hoofs/platform/fcntl.hpp"
 #include "iceoryx_hoofs/platform/file.hpp"
@@ -40,11 +39,11 @@ FileLock::FileLock(const FileName_t& name) noexcept
 
 cxx::expected<FileLockError> FileLock::initializeFileLock() noexcept
 {
-    if (!cxx::isValidFilePath(m_name))
+    if (m_name.empty())
     {
-        return cxx::error<FileLockError>(FileLockError::INVALID_FILE_NAME);
+        return cxx::error<FileLockError>(FileLockError::NO_FILE_NAME_PROVIDED);
     }
-    PathName_t fullPath(platform::IOX_LOCK_FILE_PATH_PREFIX + m_name + ".lock");
+    PathName_t fullPath(PATH_PREFIX + m_name + ".lock");
     constexpr int createFileForReadWrite = O_CREAT | O_RDWR;
     mode_t userReadWriteAccess = S_IRUSR | S_IWUSR;
 
@@ -184,7 +183,7 @@ FileLockError FileLock::convertErrnoToFileLockError(const int32_t errnum) const 
     }
     case ENOENT:
     {
-        std::cerr << "directory \"" << platform::IOX_LOCK_FILE_PATH_PREFIX << "\""
+        std::cerr << "directory \"" << PATH_PREFIX << "\""
                   << " does not exist. Please create it as described in the filesystem hierarchy standard."
                   << std::endl;
         return FileLockError::NO_SUCH_DIRECTORY;

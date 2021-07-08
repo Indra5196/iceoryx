@@ -25,14 +25,6 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/build_options.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/tests.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/install_help_and_config.cmake)
 
-if(BUILD_SHARED_LIBS)
-    # set rpath for finding shared libraries outside of the build-tree
-    # see https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling#cmake-and-the-rpath
-    list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-    if("${isSystemDir}" STREQUAL "-1")
-        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-    endif()
-endif()
 
 # ===== Core
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../iceoryx_hoofs ${CMAKE_BINARY_DIR}/hoofs)
@@ -71,6 +63,7 @@ if(EXAMPLES)
         add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../iceoryx_examples/icedelivery_in_c ${CMAKE_BINARY_DIR}/iceoryx_examples/icedelivery_in_c)
         add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../iceoryx_examples/waitset_in_c ${CMAKE_BINARY_DIR}/iceoryx_examples/waitset_in_c)
         add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../iceoryx_examples/iceperf ${CMAKE_BINARY_DIR}/iceoryx_examples/iceperf)
+        add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../iceoryx_examples/iceperf/rpc_iceperf ${CMAKE_BINARY_DIR}/iceoryx_examples/iceperf/rpc_iceperf)
     endif()
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../iceoryx_examples/waitset ${CMAKE_BINARY_DIR}/iceoryx_examples/waitset)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../iceoryx_examples/callbacks ${CMAKE_BINARY_DIR}/iceoryx_examples/callbacks)

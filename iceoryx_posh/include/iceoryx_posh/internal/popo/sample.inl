@@ -1,6 +1,5 @@
 // Copyright (c) 2020 by Robert Bosch GmbH. All rights reserved.
 // Copyright (c) 2021 by Apex.AI Inc. All rights reserved.
-// Copyright (c) 2021 by AVIN Systems Private Limited All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,27 +22,96 @@ namespace iox
 {
 namespace popo
 {
+namespace internal
+{
+template <typename T, typename H>
+inline SamplePrivateData<T, H>::SamplePrivateData(cxx::unique_ptr<T>&& sampleUniquePtr,
+                                                  PublisherInterface<T, H>& publisher) noexcept
+    : sampleUniquePtr(std::move(sampleUniquePtr))
+    , publisherRef(publisher)
+{
+}
+
+template <typename T, typename H>
+inline SamplePrivateData<const T, H>::SamplePrivateData(cxx::unique_ptr<const T>&& sampleUniquePtr) noexcept
+    : sampleUniquePtr(std::move(sampleUniquePtr))
+{
+}
+} // namespace internal
+
 template <typename T, typename H>
 template <typename S, typename>
 inline Sample<T, H>::Sample(cxx::unique_ptr<T>&& sampleUniquePtr, PublisherInterface<T, H>& publisher) noexcept
-    : SmartChunk<PublisherInterface<T, H>, T, H>(std::move(sampleUniquePtr), publisher)
+    : m_members({std::move(sampleUniquePtr), publisher})
 {
 }
 
 template <typename T, typename H>
 template <typename S, typename>
-inline Sample<T, H>::Sample(cxx::unique_ptr<const T>&& sampleUniquePtr) noexcept
-    : SmartChunk<PublisherInterface<T, H>, T, H>(std::move(sampleUniquePtr))
+inline Sample<T, H>::Sample(cxx::unique_ptr<T>&& sampleUniquePtr) noexcept
+    : m_members(std::move(sampleUniquePtr))
 {
+}
+
+template <typename T, typename H>
+inline T* Sample<T, H>::operator->() noexcept
+{
+    return get();
+}
+
+template <typename T, typename H>
+inline const T* Sample<T, H>::operator->() const noexcept
+{
+    return get();
+}
+
+template <typename T, typename H>
+inline T& Sample<T, H>::operator*() noexcept
+{
+    return *get();
+}
+
+template <typename T, typename H>
+inline const T& Sample<T, H>::operator*() const noexcept
+{
+    return *get();
+}
+
+template <typename T, typename H>
+inline Sample<T, H>::operator bool() const noexcept
+{
+    return get() != nullptr;
+}
+
+template <typename T, typename H>
+inline T* Sample<T, H>::get() noexcept
+{
+    return m_members.sampleUniquePtr.get();
+}
+
+template <typename T, typename H>
+inline const T* Sample<T, H>::get() const noexcept
+{
+    return m_members.sampleUniquePtr.get();
+}
+
+template <typename T, typename H>
+inline typename Sample<T, H>::ConditionalConstChunkHeader_t* Sample<T, H>::getChunkHeader() noexcept
+{
+    return mepoo::ChunkHeader::fromUserPayload(m_members.sampleUniquePtr.get());
+}
+
+template <typename T, typename H>
+inline const mepoo::ChunkHeader* Sample<T, H>::getChunkHeader() const noexcept
+{
+    return mepoo::ChunkHeader::fromUserPayload(m_members.sampleUniquePtr.get());
 }
 
 template <typename T, typename H>
 template <typename R, typename>
 inline R& Sample<T, H>::getUserHeader() noexcept
 {
-    return *static_cast<R*>(mepoo::ChunkHeader::fromUserPayload(
-                                SmartChunk<PublisherInterface<T, H>, T, H>::m_members.smartchunkUniquePtr.get())
-                                ->userHeader());
+    return *static_cast<R*>(mepoo::ChunkHeader::fromUserPayload(m_members.sampleUniquePtr.get())->userHeader());
 }
 
 template <typename T, typename H>
@@ -57,15 +125,21 @@ template <typename T, typename H>
 template <typename S, typename>
 inline void Sample<T, H>::publish() noexcept
 {
-    if (SmartChunk<PublisherInterface<T, H>, T, H>::m_members.smartchunkUniquePtr)
+    if (m_members.sampleUniquePtr)
     {
-        SmartChunk<PublisherInterface<T, H>, T, H>::m_members.transmitterRef.get().publish(std::move(*this));
+        m_members.publisherRef.get().publish(std::move(*this));
     }
     else
     {
         LogError() << "Tried to publish empty Sample! Might be an already published or moved Sample!";
         errorHandler(Error::kPOSH__PUBLISHING_EMPTY_SAMPLE, nullptr, ErrorLevel::MODERATE);
     }
+}
+
+template <typename T, typename H>
+inline T* Sample<T, H>::release() noexcept
+{
+    return m_members.sampleUniquePtr.release();
 }
 
 } // namespace popo

@@ -16,12 +16,12 @@
 #ifndef IOX_POSH_POPO_PORTS_SERVER_PORT_ROUDI_HPP
 #define IOX_POSH_POPO_PORTS_SERVER_PORT_ROUDI_HPP
 
-#include "iceoryx_hoofs/cxx/optional.hpp"
 #include "iceoryx_posh/internal/capro/capro_message.hpp"
 #include "iceoryx_posh/internal/popo/building_blocks/chunk_receiver.hpp"
 #include "iceoryx_posh/internal/popo/building_blocks/chunk_sender.hpp"
 #include "iceoryx_posh/internal/popo/ports/base_port.hpp"
 #include "iceoryx_posh/internal/popo/ports/server_port_data.hpp"
+#include "iceoryx_hoofs/cxx/optional.hpp"
 
 namespace iox
 {
@@ -43,6 +43,10 @@ class ServerPortRouDi : public BasePort
     ServerPortRouDi(ServerPortRouDi&& rhs) = default;
     ServerPortRouDi& operator=(ServerPortRouDi&& rhs) = default;
     ~ServerPortRouDi() = default;
+
+    QueueFullPolicy getQueueFullPolicy() const noexcept;
+
+    SubscriberTooSlowPolicy getClientTooSlowPolicy() const noexcept;
 
     /// @brief get an optional CaPro message that changes the offer state of the server
     /// @return CaPro message with the new offer state, empty optional if no state change

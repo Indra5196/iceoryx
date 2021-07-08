@@ -107,9 +107,7 @@ class ProcessManager : public ProcessManagerInterface
 
     void updateLivelinessOfProcess(const RuntimeName_t& name) noexcept;
 
-    void findServiceForProcess(const RuntimeName_t& name,
-                               const capro::IdString_t& service,
-                               const capro::IdString_t& instance) noexcept;
+    void findServiceForProcess(const RuntimeName_t& name, const capro::ServiceDescription& service) noexcept;
 
     void
     addInterfaceForProcess(const RuntimeName_t& name, capro::Interfaces interface, const NodeName_t& node) noexcept;
@@ -127,6 +125,16 @@ class ProcessManager : public ProcessManagerInterface
                                 const capro::ServiceDescription& service,
                                 const popo::PublisherOptions& publisherOptions,
                                 const PortConfigInfo& portConfigInfo = PortConfigInfo()) noexcept;
+
+    void addClientForProcess(const RuntimeName_t& name,
+                                const capro::ServiceDescription& service,
+                                const popo::ClientOptions& clientOptions,
+                                const PortConfigInfo& portConfigInfo = PortConfigInfo()) noexcept;
+
+    void addServerForProcess(const RuntimeName_t& name,
+                            const capro::ServiceDescription& service,
+                            const popo::ServerOptions& ServerOptions,
+                            const PortConfigInfo& portConfigInfo = PortConfigInfo()) noexcept;
 
     void addConditionVariableForProcess(const RuntimeName_t& runtimeName) noexcept;
 

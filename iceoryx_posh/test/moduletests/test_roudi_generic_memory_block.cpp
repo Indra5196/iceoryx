@@ -177,15 +177,17 @@ TEST_F(GenericMemoryBlock_NonTrivial_Test, MultipleEmplaceValue)
     EXPECT_THAT(emplaceResult.value()->m_data, Eq(EXPECTED_VALUE));
 }
 
-TEST_F(GenericMemoryBlock_NonTrivial_Test, RunDestructorWithoutCreate)
+TEST_F(GenericMemoryBlock_NonTrivial_Test, DestroyWithoutCreate)
 {
+    sut.destroy();
     /// @note we just expect to not terminate
 }
 
-TEST_F(GenericMemoryBlock_NonTrivial_Test, RunDestructorWithoutEmplace)
+TEST_F(GenericMemoryBlock_NonTrivial_Test, DestroyWithoutEmplace)
 {
     IOX_DISCARD_RESULT(memoryProvider.addMemoryBlock(&sut));
     IOX_DISCARD_RESULT(memoryProvider.create());
+    sut.destroy();
     /// @note we just expect to not terminate
 }
 
@@ -197,7 +199,7 @@ TEST_F(GenericMemoryBlock_NonTrivial_Test, DestroyWithEmplace)
     EXPECT_THAT(sut.emplace(EXPECTED_VALUE).value()->m_data, EXPECTED_VALUE);
     EXPECT_THAT(NonTrivialClass::s_constructorCounter, Eq(1u));
 
-    IOX_DISCARD_RESULT(memoryProvider.destroy());
+    sut.destroy();
 
     EXPECT_THAT(sut.value().has_value(), Eq(false));
     EXPECT_THAT(NonTrivialClass::s_destructorCounter, Eq(1u));
@@ -210,12 +212,12 @@ TEST_F(GenericMemoryBlock_NonTrivial_Test, RepetitiveDestroyWithEmplace)
     IOX_DISCARD_RESULT(memoryProvider.create());
     sut.emplace(EXPECTED_VALUE);
 
-    IOX_DISCARD_RESULT(memoryProvider.destroy());
+    sut.destroy();
 
     EXPECT_THAT(sut.value().has_value(), Eq(false));
 
-    IOX_DISCARD_RESULT(memoryProvider.destroy());
-    IOX_DISCARD_RESULT(memoryProvider.destroy());
+    sut.destroy();
+    sut.destroy();
 
     EXPECT_THAT(NonTrivialClass::s_destructorCounter, Eq(1u));
 }

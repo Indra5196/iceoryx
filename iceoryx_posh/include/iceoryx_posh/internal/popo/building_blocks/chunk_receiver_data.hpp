@@ -38,7 +38,6 @@ struct ChunkReceiverData : public ChunkQueueDataType
     using ChunkQueueData_t = ChunkQueueDataType;
 
     mepoo::MemoryInfo m_memoryInfo;
-
     /// we use one more than MaxChunksHeldSimultaneously for being able to provide one new chunk
     /// to the user if they already have the allowed MaxChunksHeldSimultaneously. But then the user
     /// has to return one to not brake the contract. This is aligned with AUTOSAR Adaptive ara::com

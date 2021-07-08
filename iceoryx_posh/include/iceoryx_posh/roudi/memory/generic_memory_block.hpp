@@ -1,5 +1,4 @@
 // Copyright (c) 2020 by Robert Bosch GmbH. All rights reserved.
-// Copyright (c) 2021 by Apex.AI Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,13 +41,16 @@ class GenericMemoryBlock final : public MemoryBlock
     GenericMemoryBlock& operator=(const GenericMemoryBlock&) = delete;
     GenericMemoryBlock& operator=(GenericMemoryBlock&&) = delete;
 
-    /// @copydoc MemoryBlock::size()
-    /// @note The size of the underlying type T
+    /// @brief Implementation of MemoryBlock::size
+    /// @return the size of type T
     uint64_t size() const noexcept override;
 
-    /// @copydoc MemoryBlock::alignment
-    /// @note The alignment of the underlying type T
+    /// @brief Implementation of MemoryBlock::alignment
+    /// @return the alignment of type T
     uint64_t alignment() const noexcept override;
+
+    /// @brief Implementation of MemoryBlock::destroy
+    void destroy() noexcept override;
 
     /// @brief A new element is constructed by forwarding the arguments to the constructor of T. If the MemoryBlock has
     /// a value then the destructor of T is called.
@@ -60,11 +62,6 @@ class GenericMemoryBlock final : public MemoryBlock
     /// @brief This function enables the access to the underlying type
     /// @return an optional pointer to the underlying type, cxx::nullopt_t if value is not initialized
     cxx::optional<T*> value() const noexcept;
-
-  protected:
-    /// @copydoc MemoryBlock::destroy
-    /// @note This will destroy the underlying type T
-    void destroy() noexcept override;
 
   private:
     T* m_value{nullptr};

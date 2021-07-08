@@ -100,6 +100,12 @@ class ChunkDistributor
     /// @param[in] shared chunk to be delivered
     void deliverToAllStoredQueues(mepoo::SharedChunk chunk) noexcept;
 
+    /// @brief Deliver the provided shared chunk to port specified by portId. The chunk will be added to the chunk
+    /// history
+    /// @param[in] shared chunk to be delivered
+    /// @param[in] Port Id of the port
+    void deliverToPort(mepoo::SharedChunk chunk, UniquePortId portId) noexcept;
+
     /// @brief Deliver the provided shared chunk to the provided chunk queue. The chunk will NOT be added to the chunk
     /// history
     /// @param[in] chunk queue to which this chunk shall be delivered

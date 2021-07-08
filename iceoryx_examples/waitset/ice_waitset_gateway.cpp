@@ -45,11 +45,9 @@ void subscriberCallback(iox::popo::UntypedSubscriber* const subscriber, uint64_t
     {
         subscriber->take().and_then([&](auto& userPayload) {
             auto chunkHeader = iox::mepoo::ChunkHeader::fromUserPayload(userPayload);
-            auto flags = std::cout.flags();
             std::cout << "subscriber: " << std::hex << subscriber << " length: " << std::dec
                       << chunkHeader->userPayloadSize() << " ptr: " << std::hex << chunkHeader->userPayload()
-                      << std::dec << std::endl;
-            std::cout.setf(flags);
+                      << std::endl;
         });
         // no nullptr check required since it is guaranteed != nullptr
         ++(*sumOfAllSamples);
@@ -116,9 +114,7 @@ int main()
             }
         }
 
-        auto flags = std::cout.flags();
         std::cout << "sum of all samples: " << std::dec << sumOfAllSamples << std::endl;
-        std::cout.setf(flags);
     }
 
     return (EXIT_SUCCESS);

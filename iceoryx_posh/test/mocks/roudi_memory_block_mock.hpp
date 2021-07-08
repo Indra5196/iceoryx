@@ -1,5 +1,4 @@
 // Copyright (c) 2019 by Robert Bosch GmbH. All rights reserved.
-// Copyright (c) 2021 by Apex.AI Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,9 +36,9 @@ class MemoryBlockMock final : public iox::roudi::MemoryBlock
         return alignmentMock();
     }
 
-    void onMemoryAvailable(iox::cxx::not_null<void*> memory) noexcept override
+    void memoryAvailable(void* memory) noexcept override
     {
-        onMemoryAvailableMock(memory);
+        memoryAvailableMock(memory);
     }
 
     void destroy() noexcept override
@@ -49,7 +48,7 @@ class MemoryBlockMock final : public iox::roudi::MemoryBlock
 
     MOCK_CONST_METHOD0(sizeMock, uint64_t());
     MOCK_CONST_METHOD0(alignmentMock, uint64_t());
-    MOCK_METHOD1(onMemoryAvailableMock, void(iox::cxx::not_null<void*>));
+    MOCK_METHOD1(memoryAvailableMock, void(void*));
     MOCK_METHOD0(destroyMock, void());
 };
 

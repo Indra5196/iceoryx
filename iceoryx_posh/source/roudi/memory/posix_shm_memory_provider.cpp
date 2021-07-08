@@ -30,10 +30,10 @@ namespace roudi
 {
 PosixShmMemoryProvider::PosixShmMemoryProvider(const ShmName_t& shmName,
                                                const posix::AccessMode accessMode,
-                                               const posix::OpenMode openMode) noexcept
+                                               const posix::OwnerShip ownership) noexcept
     : m_shmName(shmName)
     , m_accessMode(accessMode)
-    , m_openMode(openMode)
+    , m_ownership(ownership)
 {
 }
 
@@ -53,7 +53,7 @@ cxx::expected<void*, MemoryProviderError> PosixShmMemoryProvider::createMemory(c
         return cxx::error<MemoryProviderError>(MemoryProviderError::MEMORY_ALIGNMENT_EXCEEDS_PAGE_SIZE);
     }
 
-    posix::SharedMemoryObject::create(m_shmName, size, m_accessMode, m_openMode, nullptr)
+    posix::SharedMemoryObject::create(m_shmName, size, m_accessMode, m_ownership, nullptr)
         .and_then([this](auto& sharedMemoryObject) {
             sharedMemoryObject.finalizeAllocation();
             m_shmObject.emplace(std::move(sharedMemoryObject));

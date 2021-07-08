@@ -25,6 +25,8 @@
 #include "iceoryx_posh/internal/popo/ports/interface_port.hpp"
 #include "iceoryx_posh/internal/popo/ports/publisher_port_data.hpp"
 #include "iceoryx_posh/internal/popo/ports/subscriber_port_data.hpp"
+#include "iceoryx_posh/internal/popo/ports/client_port_data.hpp"
+#include "iceoryx_posh/internal/popo/ports/server_port_data.hpp"
 #include "iceoryx_posh/internal/runtime/node_data.hpp"
 
 namespace iox
@@ -60,6 +62,8 @@ struct PortPoolData
 
     FixedPositionContainer<iox::popo::PublisherPortData, MAX_PUBLISHERS> m_publisherPortMembers;
     FixedPositionContainer<iox::popo::SubscriberPortData, MAX_SUBSCRIBERS> m_subscriberPortMembers;
+    FixedPositionContainer<iox::popo::ServerPortData, MAX_SERVERS> m_serverPortMembers;
+    FixedPositionContainer<iox::popo::ClientPortData, MAX_CLIENTS> m_clientPortMembers;
 
     // required to be atomic since a service can be offered or stopOffered while reading
     // this variable in a user application
