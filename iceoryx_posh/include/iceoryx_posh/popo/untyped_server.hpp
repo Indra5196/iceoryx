@@ -73,9 +73,9 @@ class UntypedServerImpl : public BaseServer_t
     ///
     void send(void* const userPayload, UniquePortId portId) noexcept;
 
-    void runRequestHandler(const void* userPayload, uint32_t& retval);
+    void runRequestHandler(UntypedServerImpl* server);
 
-    using RequestHandlerType = std::function<void(const void*, uint32_t& retval)>;
+    using RequestHandlerType = std::function<void(UntypedServerImpl*)>;
 
     void registerRequestHandler(RequestHandlerType handler) noexcept;
 

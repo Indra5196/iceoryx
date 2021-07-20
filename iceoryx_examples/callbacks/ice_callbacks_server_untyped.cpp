@@ -44,38 +44,38 @@ static void sigHandler(int f_sig IOX_MAYBE_UNUSED)
 }
 
 void RequestHandler(iox::popo::UntypedServer* server) {
-    server->take().and_then([server](const void* userPayload) {
-        auto header = static_cast<const iox::popo::RequestHeader*>(iox::mepoo::ChunkHeader::fromUserPayload(userPayload)->userHeader());
-        bool serverError = false;
-        uint32_t retval;
-        bool fnf = header->getFireAndForget();
-        iox::UniquePortId portId = header->getUniquePortId();
-        try {
-            server->runRequestHandler(userPayload, retval);
-        }
-        catch (...){
-            serverError = true;
-        }
+    // server->take().and_then([server](const void* userPayload) {
+    //     auto header = static_cast<const iox::popo::RequestHeader*>(iox::mepoo::ChunkHeader::fromUserPayload(userPayload)->userHeader());
+    //     bool serverError = false;
+    //     uint32_t retval;
+    //     bool fnf = header->getFireAndForget();
+    //     iox::UniquePortId portId = header->getUniquePortId();
+        // try {
+        //     // server->runRequestHandler(userPayload, retval);
+        // }
+        // catch (...){
+        //     serverError = true;
+        // }
 
-        server->release(userPayload);
+    //     server->release(userPayload);
 
-        if (fnf)
-            std::cout << "Fire and Forget: Sending No response\n";
-        else {
-        server->loan(sizeof(uint32_t)).and_then([&](void* userPayload) {
-            uint32_t* res = static_cast<uint32_t*>(userPayload);
-            *res = retval;
-            auto header = static_cast<iox::popo::ResponseHeader*>(iox::mepoo::ChunkHeader::fromUserPayload(userPayload)->userHeader());
-            header->setServerError(serverError);
-            std::cout << "Server Replying: " << retval << "\n";
-            server->send(userPayload, portId);
-        })
-        .or_else([&](auto& error) {
-            // Do something with the error
-            std::cerr << "Unable to loan server sample, error code: " << static_cast<uint64_t>(error) << std::endl;
-        });
-    }
-    });
+    //     if (fnf)
+    //         std::cout << "Fire and Forget: Sending No response\n";
+    //     else {
+    //     server->loan(sizeof(uint32_t)).and_then([&](void* userPayload) {
+    //         uint32_t* res = static_cast<uint32_t*>(userPayload);
+    //         *res = retval;
+    //         auto header = static_cast<iox::popo::ResponseHeader*>(iox::mepoo::ChunkHeader::fromUserPayload(userPayload)->userHeader());
+    //         header->setServerError(serverError);
+    //         std::cout << "Server Replying: " << retval << "\n";
+    //         server->send(userPayload, portId);
+    //     })
+    //     .or_else([&](auto& error) {
+    //         // Do something with the error
+    //         std::cerr << "Unable to loan server sample, error code: " << static_cast<uint64_t>(error) << std::endl;
+    //     });
+    // }
+    // });
 }
 
 int main()

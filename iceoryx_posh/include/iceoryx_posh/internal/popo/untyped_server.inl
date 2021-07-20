@@ -32,30 +32,30 @@ static uint32_t CubeMethod(uint32_t requestMsg){
     return requestMsg * requestMsg * requestMsg;
 }
 
-static void HandleRequests(const void* userPayload, uint32_t& retval)
+static void HandleRequests(UntypedServer* server)
 {
-    const uint32_t* req = static_cast<const uint32_t*>(userPayload);
-    auto header = static_cast<const iox::popo::RequestHeader*>(iox::mepoo::ChunkHeader::fromUserPayload(userPayload)->userHeader());
-    Methods methodId = static_cast<Methods>(header->getMethodId());
+    // const uint32_t* req = static_cast<const uint32_t*>(userPayload);
+    // auto header = static_cast<const iox::popo::RequestHeader*>(iox::mepoo::ChunkHeader::fromUserPayload(userPayload)->userHeader());
+    // Methods methodId = static_cast<Methods>(header->getMethodId());
 
 
-    // uint32_t response;
+    // // uint32_t response;
 
-    //throw 1;
+    // //throw 1;
 
-    switch (methodId)
-    {
-    case Methods::SQUARE:
-        retval = SquareMethod(*req);
-        break;
+    // switch (methodId)
+    // {
+    // case Methods::SQUARE:
+    //     retval = SquareMethod(*req);
+    //     break;
 
-    case Methods::CUBE:
-        retval = CubeMethod(*req);
-        break;
+    // case Methods::CUBE:
+    //     retval = CubeMethod(*req);
+    //     break;
     
-    default:
-        break;
-    }
+    // default:
+    //     break;
+    // }
 }
 
 template <typename BaseServer_t>
@@ -123,9 +123,9 @@ inline void UntypedServerImpl<BaseServer_t>::unregisterRequestHandler() noexcept
 }
 
 template <typename BaseServer_t>
-inline void UntypedServerImpl<BaseServer_t>::runRequestHandler(const void* userPayload, uint32_t& retval)
+inline void UntypedServerImpl<BaseServer_t>::runRequestHandler(UntypedServerImpl* server)
 {
-    if (m_requestHandler) m_requestHandler(userPayload, retval);
+    if (m_requestHandler) m_requestHandler(server);
 }
 
 template <typename BaseServer_t>
