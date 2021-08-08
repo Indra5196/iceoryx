@@ -28,9 +28,6 @@ namespace iox
 {
 namespace popo
 {
-class Void
-{
-};
 
 enum class Methods : uint64_t{
     SQUARE = 0x1,
