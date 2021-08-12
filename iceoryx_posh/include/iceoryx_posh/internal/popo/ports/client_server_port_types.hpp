@@ -87,10 +87,21 @@ class RPCBaseHeader
     {
         return m_sequenceNumber;
     }
+    
+    void setSequenceId(const int64_t sequenceId) noexcept
+    {
+        this->m_sequenceId = sequenceId;
+    }
+
+    int64_t getSequenceId() const noexcept
+    {
+        return m_sequenceId;
+    }
 
   protected:
     rp::RelativePointer<ClientChunkQueueData_t> m_clientQueueDataPtr;
     int64_t m_sequenceNumber{0};
+    int64_t m_sequenceId{0};
 };
 
 class RequestHeader : public RPCBaseHeader
