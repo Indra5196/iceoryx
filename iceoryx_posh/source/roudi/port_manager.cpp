@@ -529,7 +529,7 @@ void PortManager::sendToAllMatchingServerPorts(const capro::CaproMessage& messag
     for (auto serverPortData : m_portPool->getServerPortDataList())
     {
         ServerPortRouDiType serverPort(serverPortData);
-        if (clientSource.getCaProServiceDescription() == clientSource.getCaProServiceDescription()
+        if (serverPort.getCaProServiceDescription() == clientSource.getCaProServiceDescription()
             && !(serverPort.getClientTooSlowPolicy() == popo::SubscriberTooSlowPolicy::DISCARD_OLDEST_DATA
                  && clientSource.getQueueFullPolicy() == popo::QueueFullPolicy::BLOCK_PUBLISHER))
         {
