@@ -123,6 +123,16 @@ class RequestHeader : public RPCBaseHeader
         this->m_sequenceNumber = sequenceNumber;
     }
 
+    void setServiceId(const uint64_t serviceId) noexcept
+    {
+        this->m_serviceId = serviceId;
+    }
+
+    uint64_t getServiceId() const noexcept
+    {
+        return m_serviceId;
+    }
+
     void setMethodId(const uint64_t methodId) noexcept
     {
        m_methodId = methodId;
@@ -167,6 +177,7 @@ class RequestHeader : public RPCBaseHeader
   private:
     bool m_isFireAndForget{false};
     uint64_t m_methodId{0x0};
+    uint64_t m_serviceId{0x0};
     UniquePortId m_portId;
 };
 
