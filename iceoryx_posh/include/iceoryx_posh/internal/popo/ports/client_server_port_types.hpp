@@ -108,11 +108,22 @@ class RPCBaseHeader
         return m_serviceId;
     }
 
+    void setMethodId(const uint64_t methodId) noexcept
+    {
+       m_methodId = methodId;
+    }
+
+    uint64_t getMethodId() const noexcept
+    {
+        return m_methodId;
+    }
+
   protected:
     rp::RelativePointer<ClientChunkQueueData_t> m_clientQueueDataPtr;
     int64_t m_sequenceNumber{0};
     int64_t m_sequenceId{0};
     uint64_t m_serviceId{0x0};
+    uint64_t m_methodId{0x0};
 };
 
 class RequestHeader : public RPCBaseHeader
@@ -134,11 +145,6 @@ class RequestHeader : public RPCBaseHeader
         this->m_sequenceNumber = sequenceNumber;
     }
 
-    void setMethodId(const uint64_t methodId) noexcept
-    {
-       m_methodId = methodId;
-    }
-
     void setUniquePortId(const UniquePortId portId) noexcept
     {
        m_portId = portId;
@@ -147,11 +153,6 @@ class RequestHeader : public RPCBaseHeader
     void setFireAndForget(const bool fireAndForget) noexcept
     {
         m_isFireAndForget = fireAndForget;
-    }
-
-    uint64_t getMethodId() const noexcept
-    {
-        return m_methodId;
     }
 
     UniquePortId getUniquePortId() const noexcept
@@ -177,7 +178,6 @@ class RequestHeader : public RPCBaseHeader
 
   private:
     bool m_isFireAndForget{false};
-    uint64_t m_methodId{0x0};
 
     UniquePortId m_portId;
 };
