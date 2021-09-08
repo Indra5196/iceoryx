@@ -40,7 +40,7 @@ struct SubscriberOptions
     iox::NodeName_t nodeName{""};
 
     /// @brief The option whether the subscriber shall try to subscribe when creating it
-    bool subscribeOnCreate{true};
+    bool subscribeOnCreate{false};
 
     /// @brief The option whether the publisher should block when the subscriber queue is full
     QueueFullPolicy queueFullPolicy{QueueFullPolicy::DISCARD_OLDEST_DATA};
