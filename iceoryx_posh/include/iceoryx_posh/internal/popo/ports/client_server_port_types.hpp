@@ -201,10 +201,20 @@ class ResponseHeader : public RPCBaseHeader
     {
         m_hasServerError = serverError;
     }
+    
+    void setHasNoReturnValue(bool hasNoReturnValue) noexcept
+    {
+        m_hasNoReturnValue = hasNoReturnValue;
+    }
 
     bool hasServerError() const noexcept
     {
         return m_hasServerError;
+    }
+    
+    bool hasNoReturnValue() const noexcept
+    {
+        return m_hasNoReturnValue;
     }
 
     const mepoo::ChunkHeader* getChunkHeader() const noexcept
@@ -220,6 +230,7 @@ class ResponseHeader : public RPCBaseHeader
 
   private:
     bool m_hasServerError{false};
+    bool m_hasNoReturnValue{false};
 };
 
 
