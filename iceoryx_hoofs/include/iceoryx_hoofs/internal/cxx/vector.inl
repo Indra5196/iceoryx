@@ -57,6 +57,22 @@ inline vector<T, Capacity>::vector(const uint64_t count) noexcept
         new (&at(i)) T();
     }
 }
+    
+template <typename T, uint64_t Capacity>
+inline vector<T, Capacity>::vector(std::initializer_list<T> list ) noexcept
+{
+    if (list.size() > Capacity)
+    {
+        std::cerr << "Attemting to initialize a vector of capacity " << Capacity << " with " << list.size()
+                  << " elements. This exceeds the capacity and only " << Capacity << " elements will be created!"
+                  << std::endl;
+    }
+
+    for (T i : list)
+    {
+        emplace_back(i);
+    }
+}
 
 template <typename T, uint64_t Capacity>
 inline vector<T, Capacity>::vector(const vector& rhs) noexcept
