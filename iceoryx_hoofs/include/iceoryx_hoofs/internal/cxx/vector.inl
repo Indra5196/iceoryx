@@ -366,10 +366,7 @@ inline typename vector<T, Capacity>::iterator vector<T, Capacity>::erase(iterato
     }
     return nullptr;
 }
-
-} // namespace cxx
-} // namespace iox
-
+    
 template <typename T, uint64_t CapacityLeft, uint64_t CapacityRight>
 inline bool operator==(const iox::cxx::vector<T, CapacityLeft>& lhs,
                        const iox::cxx::vector<T, CapacityRight>& rhs) noexcept
@@ -396,6 +393,9 @@ inline bool operator!=(const iox::cxx::vector<T, CapacityLeft>& lhs,
 {
     return !(lhs == rhs);
 }
+
+} // namespace cxx
+} // namespace iox
 
 
 #endif // IOX_HOOFS_CXX_VECTOR_INL
